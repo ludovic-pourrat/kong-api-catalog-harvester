@@ -40,4 +40,8 @@ https://www.talend.com/products/data-catalog/
 
 Crawl, profile, organize, link, and enrich all your data at speed
 
+https://www.apiclarity.io/
+
+Open source for API traffic visibility in K8s clusters
+
 
