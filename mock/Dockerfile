@@ -11,7 +11,7 @@ RUN \
   apk update && apk add coreutils && rm -rf /var/cache/apk/* && \
   chmod u=rwx,g=rx,o= /entrypoint.sh
 
-COPY --chown=mock:root ./http/mockbin/entrypoint.sh /entrypoint.sh
+COPY --chown=mock:root entrypoint.sh /entrypoint.sh
 
 RUN npm install -g mockbin --verbose
 
