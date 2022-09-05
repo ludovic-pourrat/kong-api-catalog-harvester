@@ -1,0 +1,17 @@
+_format_version: "2.1"
+_transform: true
+
+services:
+  - name: hello
+    url: https://httpbin.org/anything
+    routes:
+      - name: hello
+        paths:
+          - /hello
+
+plugins:
+  - name: api-catalog-harvester
+    enabled: true
+    service: hello
+    config:
+      active: true
