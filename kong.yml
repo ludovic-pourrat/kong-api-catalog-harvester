@@ -2,16 +2,17 @@ _format_version: "2.1"
 _transform: true
 
 services:
-  - name: hello
-    url: https://httpbin.org/anything
+  - name: mock
+    url: http://mock:8080/echo
+    protocol: http
     routes:
-      - name: hello
+      - name: mock
         paths:
-          - /hello
+          - /echo
 
 plugins:
   - name: api-catalog-harvester
     enabled: true
-    service: hello
+    service: mock
     config:
       active: true
