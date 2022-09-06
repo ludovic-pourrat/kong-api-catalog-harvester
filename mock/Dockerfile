@@ -5,7 +5,7 @@
 #
 FROM node:14.20.0-alpine3.15@sha256:f00e9497a23928d5cef5d6f09001e5c8072be9409d63c68231dfb74489d2124e
 
-COPY --chown=mock:root entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 
 RUN \
   addgroup mock && \
@@ -17,7 +17,7 @@ RUN npm install -g mockbin --verbose
 
 WORKDIR /workspace
 
-RUN chown -R mock:root /workspace
+RUN chown -R mock:root /workspace /entrypoint.sh
 
 USER mock
 
