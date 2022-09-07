@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Kong/go-pdk"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -15,6 +16,7 @@ import (
 
 var Version = "0.0.1"
 var Priority = 1
+var specs = make(map[string]*openapi3.T) // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -53,7 +55,7 @@ type LogMsg struct {
 		WsID           string `json:"ws_id"`
 	} `json:"service"`
 	Request struct {
-		Querystring map[string][]string    `json:"querystring"`
+		Querystring map[string]interface{} `json:"querystring"`
 		Size        int                    `json:"size"`
 		URI         string                 `json:"uri"`
 		URL         string                 `json:"url"`
@@ -115,16 +117,27 @@ func (conf Config) Log(kong *pdk.PDK) {
 		kong.Log.Err(err)
 		return
 	}
-	info := &openapi3.Info{
-		Title:   msg.Service.Name,
-		Version: "0.1",
+	if _, found := specs[msg.Service.Name]; !found {
+		info := &openapi3.Info{
+			Title:   msg.Service.Name,
+			Version: "0.1",
+		}
+		specs[msg.Service.Name] = &openapi3.T{OpenAPI: "3.0.0", Info: info}
 	}
-	spec := &openapi3.T{OpenAPI: "3.0.0", Info: info}
 	// Parameters
 	var params []*openapi3.ParameterRef
-	for k, _ := range msg.Request.Querystring {
+	for k, v := range msg.Request.Querystring {
+		var schema *openapi3.Schema
+		switch v.(type) {
+		case string:
+			schema = openapi3.NewStringSchema()
+		case []interface{}:
+			schema = openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())
+		default:
+			kong.Log.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
+		}
 		param := openapi3.ParameterRef{
-			Value: openapi3.NewPathParameter(k).WithSchema(openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())),
+			Value: openapi3.NewPathParameter(k).WithSchema(schema),
 		}
 		params = append(params, &param)
 	}
@@ -142,14 +155,14 @@ func (conf Config) Log(kong *pdk.PDK) {
 		Parameters:  params,
 		Responses:   responses,
 	}
-	spec.AddOperation(u.Path, msg.Request.Method, op)
+	specs[msg.Service.Name].AddOperation(u.Path, msg.Request.Method, op)
 	// Validate
-	err = spec.Validate(context.Background())
+	err = specs[msg.Service.Name].Validate(context.Background())
 	if err != nil {
 		kong.Log.Warn(err)
 	}
 	// output to log
-	data, err := spec.MarshalJSON()
+	data, err := specs[msg.Service.Name].MarshalJSON()
 	if err != nil {
 		kong.Log.Err(err)
 		return
