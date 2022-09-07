@@ -2,11 +2,19 @@ version: "3"
 services:
   
   mock:
-    build: ./mock
+    build: ./mocks/mockbin
     command: mockbin
     ports:
       - "8080:8080"
-      
+
+  prism:
+    build: ./mocks/prism
+    command: prism mock -h 0.0.0.0 -d /workspace/petstore.openapi.yaml
+    ports:
+      - "4010:4010"
+    volumes:
+      - ${PWD}/fixitures/petstore.openapi.yaml:/workspace/petstore.openapi.yaml  
+
   kong:
     build: .
     environment:

@@ -2,17 +2,31 @@ _format_version: "2.1"
 _transform: true
 
 services:
-  - name: mock
-    url: http://mock:8080/echo
+  - name: echo
+    url: http://mockbin:8080/echo
     protocol: http
     routes:
-      - name: mock
+      - name: echo
         paths:
           - /echo
+
+  - name: openapi
+    url: http://prism:4010/
+    protocol: http
+    routes:
+      - name: openapi
+        paths:
+          - /openapi
 
 plugins:
   - name: api-catalog-harvester
     enabled: true
-    service: mock
+    service: echo
+    config:
+      active: true
+
+  - name: api-catalog-harvester
+    enabled: true
+    service: openapi
     config:
       active: true
