@@ -13,12 +13,14 @@ RUN \
   apk update && apk add coreutils && rm -rf /var/cache/apk/* && \
   chmod u=rwx,g=rx,o= /entrypoint.sh
 
-RUN npm install -g mockbin --verbose
+RUN npm install -g mockbin
 
 WORKDIR /workspace
 
 RUN chown -R mock:root /workspace /entrypoint.sh
 
 USER mock
+
+EXPOSE 8080
 
 ENTRYPOINT ["/entrypoint.sh"]
