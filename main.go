@@ -6,10 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
+	"github.com/Kong/go-pdk/log"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
-	"log"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 )
@@ -104,17 +105,21 @@ func (conf Config) Log(kong *pdk.PDK) {
 	// get and parse log message
 	s, err := kong.Log.Serialize()
 	if err != nil {
-		_ = kong.Log.Err("Error getting log message: ", err.Error())
+		kong.Log.Err("Error getting log message: ", err.Error())
 		return
 	}
+	processLog(s, kong.Log)
+}
+
+func processLog(s string, logger log.Log) {
 	var msg LogMsg
 	if err := json.Unmarshal([]byte(s), &msg); err != nil {
-		_ = kong.Log.Err("Error unmarshalling log message: ", err.Error())
+		_ = logger.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
 	u, err := url.Parse(msg.UpstreamURI)
 	if err != nil {
-		kong.Log.Err(err)
+		logger.Err(err)
 		return
 	}
 	if _, found := specs[msg.Service.Name]; !found {
@@ -134,7 +139,7 @@ func (conf Config) Log(kong *pdk.PDK) {
 		case []interface{}:
 			schema = openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())
 		default:
-			kong.Log.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
+			logger.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
 		}
 		param := openapi3.ParameterRef{
 			Value: openapi3.NewPathParameter(k).WithSchema(schema),
@@ -143,8 +148,9 @@ func (conf Config) Log(kong *pdk.PDK) {
 	}
 	// Responses
 	responses := openapi3.NewResponses()
-	content := openapi3.Content{
-		msg.Response.Headers["content-type"].(string): openapi3.NewMediaType(),
+	content := openapi3.Content{}
+	if _, found := msg.Response.Headers["content-type"]; found {
+		content[msg.Response.Headers["content-type"].(string)] = openapi3.NewMediaType()
 	}
 	responses[strconv.Itoa(msg.Response.Status)] = &openapi3.ResponseRef{
 		Value: openapi3.NewResponse().WithContent(content),
@@ -159,33 +165,30 @@ func (conf Config) Log(kong *pdk.PDK) {
 	// Validate
 	err = specs[msg.Service.Name].Validate(context.Background())
 	if err != nil {
-		kong.Log.Warn(err)
+		logger.Warn(err)
 	}
-	// output to log
+	// marshal to json
 	data, err := specs[msg.Service.Name].MarshalJSON()
 	if err != nil {
-		kong.Log.Err(err)
+		logger.Err(err)
 		return
 	}
-	err = kong.Log.Err(prettify(data))
-	if err != nil {
-		kong.Log.Err(err)
-		return
-	}
+	// write to file
+	os.WriteFile(fmt.Sprintf("/tmp/%s.json", msg.Service.Name), prettify(data), 0644)
 }
 
-func prettify(data []byte) (string, error) {
+func prettify(data []byte) []byte {
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, data, "", "  "); err != nil {
-		return "", err
+		return []byte("")
 	}
-	return prettyJSON.String(), nil
+	return prettyJSON.Bytes()
 }
 
 func main() {
 	err := server.StartServer(New, Version, Priority)
 	if err != nil {
-		log.Printf("Error starting embedded plugin server: %s", err.Error())
+		fmt.Println("Error starting embedded plugin server:", err.Error())
 		panic(err)
 	}
 }
