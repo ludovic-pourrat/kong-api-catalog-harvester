@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/Kong/go-pdk"
 	"github.com/Kong/go-pdk/server"
 	"log"
 	"strconv"
+
+	"github.com/getkin/kin-openapi/openapi3"
 )
 
 var Version = "0.0.1"
@@ -106,6 +109,27 @@ func (conf Config) Log(kong *pdk.PDK) {
 		return
 	}
 	log.Printf(strconv.FormatInt(msg.StartedAt, 10))
+	info := &openapi3.Info{
+		Title:   "MyAPI",
+		Version: "0.1",
+	}
+	spec := &openapi3.T{OpenAPI: "3.0.0", Info: info}
+	param := openapi3.NewPathParameter("TODO")
+	op := &openapi3.Operation{
+		OperationID: "test",
+		Parameters:  []*openapi3.ParameterRef{{Value: param}},
+		Responses:   openapi3.NewResponses(),
+	}
+	spec.AddOperation("TODO", msg.Request.Method, op)
+	err = spec.Validate(context.Background())
+	data, err := spec.MarshalJSON()
+	if err != nil {
+		kong.Log.Err(err)
+	}
+	err = kong.Log.Err(string(data))
+	if err != nil {
+		kong.Log.Err(err)
+	}
 }
 
 func main() {
