@@ -18,3 +18,7 @@
 .history/
 .idea/
 .vscode/
+
+# Logs
+
+logs/

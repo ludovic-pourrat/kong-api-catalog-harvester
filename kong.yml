@@ -30,3 +30,8 @@ plugins:
     service: openapi
     config:
       active: true
+
+  - name: file-log
+    enabled: true
+    config:
+      path: /logs/proxy.log

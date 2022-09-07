@@ -36,3 +36,4 @@ services:
       - "8002:8002"
     volumes:
       - ${PWD}/kong.yml:/etc/kong/kong.yml
+      - ${PWD}/logs:/logs
