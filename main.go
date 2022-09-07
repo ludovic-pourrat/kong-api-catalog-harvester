@@ -1,18 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/Kong/go-pdk"
 	"github.com/Kong/go-pdk/server"
-	"log"
-	"strconv"
-
 	"github.com/getkin/kin-openapi/openapi3"
+	"log"
+	"net/url"
+	"path"
+	"strconv"
 )
 
 var Version = "0.0.1"
 var Priority = 1
+var specs = make(map[string]*openapi3.T) // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -40,6 +44,7 @@ type LogMsg struct {
 		CreatedAt      int    `json:"created_at"`
 		ConnectTimeout int    `json:"connect_timeout"`
 		ID             string `json:"id"`
+		Name           string `json:"name"`
 		Protocol       string `json:"protocol"`
 		ReadTimeout    int    `json:"read_timeout"`
 		Port           int    `json:"port"`
@@ -50,13 +55,12 @@ type LogMsg struct {
 		WsID           string `json:"ws_id"`
 	} `json:"service"`
 	Request struct {
-		Querystring struct {
-		} `json:"querystring"`
-		Size    int                    `json:"size"`
-		URI     string                 `json:"uri"`
-		URL     string                 `json:"url"`
-		Headers map[string]interface{} `json:"headers"`
-		Method  string                 `json:"method"`
+		Querystring map[string]interface{} `json:"querystring"`
+		Size        int                    `json:"size"`
+		URI         string                 `json:"uri"`
+		URL         string                 `json:"url"`
+		Headers     map[string]interface{} `json:"headers"`
+		Method      string                 `json:"method"`
 	} `json:"request"`
 	Tries []struct {
 		BalancerLatency int    `json:"balancer_latency"`
@@ -108,28 +112,74 @@ func (conf Config) Log(kong *pdk.PDK) {
 		_ = kong.Log.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
-	log.Printf(strconv.FormatInt(msg.StartedAt, 10))
-	info := &openapi3.Info{
-		Title:   "MyAPI",
-		Version: "0.1",
+	u, err := url.Parse(msg.UpstreamURI)
+	if err != nil {
+		kong.Log.Err(err)
+		return
 	}
-	spec := &openapi3.T{OpenAPI: "3.0.0", Info: info}
-	param := openapi3.NewPathParameter("TODO")
+	if _, found := specs[msg.Service.Name]; !found {
+		info := &openapi3.Info{
+			Title:   msg.Service.Name,
+			Version: "0.1",
+		}
+		specs[msg.Service.Name] = &openapi3.T{OpenAPI: "3.0.0", Info: info}
+	}
+	// Parameters
+	var params []*openapi3.ParameterRef
+	for k, v := range msg.Request.Querystring {
+		var schema *openapi3.Schema
+		switch v.(type) {
+		case string:
+			schema = openapi3.NewStringSchema()
+		case []interface{}:
+			schema = openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())
+		default:
+			kong.Log.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
+		}
+		param := openapi3.ParameterRef{
+			Value: openapi3.NewPathParameter(k).WithSchema(schema),
+		}
+		params = append(params, &param)
+	}
+	// Responses
+	responses := openapi3.NewResponses()
+	content := openapi3.Content{
+		msg.Response.Headers["content-type"].(string): openapi3.NewMediaType(),
+	}
+	responses[strconv.Itoa(msg.Response.Status)] = &openapi3.ResponseRef{
+		Value: openapi3.NewResponse().WithContent(content),
+	}
+	// Operation
 	op := &openapi3.Operation{
-		OperationID: "test",
-		Parameters:  []*openapi3.ParameterRef{{Value: param}},
-		Responses:   openapi3.NewResponses(),
+		OperationID: path.Base(u.Path),
+		Parameters:  params,
+		Responses:   responses,
 	}
-	spec.AddOperation("TODO", msg.Request.Method, op)
-	err = spec.Validate(context.Background())
-	data, err := spec.MarshalJSON()
+	specs[msg.Service.Name].AddOperation(u.Path, msg.Request.Method, op)
+	// Validate
+	err = specs[msg.Service.Name].Validate(context.Background())
+	if err != nil {
+		kong.Log.Warn(err)
+	}
+	// output to log
+	data, err := specs[msg.Service.Name].MarshalJSON()
 	if err != nil {
 		kong.Log.Err(err)
+		return
 	}
-	err = kong.Log.Err(string(data))
+	err = kong.Log.Err(prettify(data))
 	if err != nil {
 		kong.Log.Err(err)
+		return
 	}
+}
+
+func prettify(data []byte) (string, error) {
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, data, "", "  "); err != nil {
+		return "", err
+	}
+	return prettyJSON.String(), nil
 }
 
 func main() {
