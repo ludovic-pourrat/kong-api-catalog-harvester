@@ -10,9 +10,9 @@ RUN \
 
 RUN npm install -g newman
 
-WORKDIR /workspace
+WORKDIR /etc/newman
 
-RUN chown -R tool:root /workspace /entrypoint.sh
+RUN chown -R tool:root /etc/newman /entrypoint.sh
 
 USER tool
 
