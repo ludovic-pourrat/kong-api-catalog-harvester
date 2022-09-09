@@ -24,6 +24,7 @@ services:
       - KONG_ADMIN_ACCESS_LOG=/dev/stdout
       - KONG_PROXY_ERROR_LOG=/dev/stderr
       - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_STATUS_LISTEN=0.0.0.0:8006
       - KONG_PROXY_LISTEN=0.0.0.0:8000
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
       - KONG_ADMIN_UI_LISTEN=0.0.0.0:8002
@@ -34,14 +35,14 @@ services:
       - "8000:8000"
       - "8001:8001"
       - "8002:8002"
+      - "8006:8006"
     volumes:
       - ${PWD}/kong.yml:/etc/kong/kong.yml
       - ${PWD}/logs:/logs
 
   newman:
-    image: postman/newman:alpine
-    command: run petstore.openapi.postman-collection.json
-    restart: on-failure
+    build: ./tools/newman
+    command: newman run petstore.openapi.postman-collection.json
     depends_on:
       - kong
       - prism
