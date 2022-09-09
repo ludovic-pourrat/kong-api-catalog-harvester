@@ -37,3 +37,14 @@ services:
     volumes:
       - ${PWD}/kong.yml:/etc/kong/kong.yml
       - ${PWD}/logs:/logs
+
+  newman:
+    image: postman/newman:alpine
+    command: run petstore.openapi.postman-collection.json
+    restart: on-failure
+    depends_on:
+      - kong
+      - prism
+      - mock
+    volumes:
+      - ${PWD}/fixitures/collections:/etc/newman

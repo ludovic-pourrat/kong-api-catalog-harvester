@@ -862,7 +862,7 @@
 	"variable": [
 		{
 			"key": "baseUrl",
-			"value": "http://localhost:8000/openapi",
+			"value": "http://kong:8000/openapi",
 			"type": "string"
 		}
 	]
