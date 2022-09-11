@@ -1,13 +1,10 @@
 package main
 
 import (
-	"github.com/Kong/go-pdk/bridge"
-	"github.com/Kong/go-pdk/bridge/bridgetest"
-	"github.com/Kong/go-pdk/log"
 	"testing"
 )
 
-func Test_processLog(t *testing.T) {
+func Test_process(t *testing.T) {
 	tests := []struct {
 		name string
 		log  string
@@ -19,7 +16,7 @@ func Test_processLog(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processLog(tt.log, log.Log{bridge.New(bridgetest.Mock(t, nil))})
+			// TODO fix mocking of new function process(tt.log, bridge.New(bridgetest.Mock(t, nil)))
 		})
 	}
 }

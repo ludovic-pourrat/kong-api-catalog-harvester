@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
-	"github.com/Kong/go-pdk/log"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
 	"net/url"
@@ -18,6 +17,8 @@ import (
 var Version = "0.0.1"
 var Priority = 1
 var specs = make(map[string]*openapi3.T) // FIXME add mutex
+var rawRequestBody string                // FIXME add mutex
+var rawResponseBody string               // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -98,6 +99,22 @@ type LogMsg struct {
 	StartedAt int64 `json:"started_at"`
 }
 
+func (conf Config) Response(kong *pdk.PDK) {
+	logger := kong.Log
+
+	bytes, err := kong.Request.GetRawBody()
+	if err != nil {
+		logger.Err(err)
+		return
+	}
+	rawRequestBody = string(bytes)
+	rawResponseBody, err = kong.ServiceResponse.GetRawBody()
+	if err != nil {
+		logger.Err(err)
+		return
+	}
+}
+
 func (conf Config) Log(kong *pdk.PDK) {
 	if !conf.Active() {
 		return
@@ -108,24 +125,27 @@ func (conf Config) Log(kong *pdk.PDK) {
 		kong.Log.Err("Error getting log message: ", err.Error())
 		return
 	}
-	processLog(s, kong.Log)
+	process(s, kong)
 }
 
-func processLog(s string, logger log.Log) {
+func process(s string, kong *pdk.PDK) {
 	var msg LogMsg
+	logger := kong.Log
 	if err := json.Unmarshal([]byte(s), &msg); err != nil {
 		_ = logger.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
+	// URL
 	u, err := url.Parse(msg.UpstreamURI)
 	if err != nil {
 		logger.Err(err)
 		return
 	}
+	// Build specification
 	if _, found := specs[msg.Service.Name]; !found {
 		info := &openapi3.Info{
 			Title:   msg.Service.Name,
-			Version: "0.1",
+			Version: "0.0.0",
 		}
 		specs[msg.Service.Name] = &openapi3.T{OpenAPI: "3.0.0", Info: info}
 	}
@@ -146,19 +166,34 @@ func processLog(s string, logger log.Log) {
 		}
 		params = append(params, &param)
 	}
-	// Responses
-	responses := openapi3.NewResponses()
-	content := openapi3.Content{}
-	if _, found := msg.Response.Headers["content-type"]; found {
-		content[msg.Response.Headers["content-type"].(string)] = openapi3.NewMediaType()
+	// Request
+	request := openapi3.NewRequestBody()
+	requestContent := openapi3.Content{}
+	if _, found := msg.Request.Headers["content-type"]; found {
+		requestContent[msg.Request.Headers["content-type"].(string)] = openapi3.NewMediaType()
 	}
+	request.Content = requestContent
+	// Convert request to schema ref TODO
+	requestRef := &openapi3.RequestBodyRef{
+		Value: request,
+	}
+	// Response
+	responses := openapi3.NewResponses()
+	responseContent := openapi3.Content{}
+	if _, found := msg.Response.Headers["content-type"]; found {
+		responseContent[msg.Response.Headers["content-type"].(string)] = openapi3.NewMediaType()
+	}
+	response := openapi3.NewResponse()
+	response.WithContent(responseContent)
+	// Convert response to schema ref TODO
 	responses[strconv.Itoa(msg.Response.Status)] = &openapi3.ResponseRef{
-		Value: openapi3.NewResponse().WithContent(content),
+		Value: response,
 	}
 	// Operation
 	op := &openapi3.Operation{
 		OperationID: path.Base(u.Path),
 		Parameters:  params,
+		RequestBody: requestRef,
 		Responses:   responses,
 	}
 	specs[msg.Service.Name].AddOperation(u.Path, msg.Request.Method, op)
@@ -167,14 +202,14 @@ func processLog(s string, logger log.Log) {
 	if err != nil {
 		logger.Warn(err)
 	}
-	// marshal to json
+	// Marshal to json
 	data, err := specs[msg.Service.Name].MarshalJSON()
 	if err != nil {
 		logger.Err(err)
 		return
 	}
-	// write to file
-	os.WriteFile(fmt.Sprintf("/tmp/%s.json", msg.Service.Name), prettify(data), 0644)
+	// Write to file
+	os.WriteFile(fmt.Sprintf("/logs/%s.json", msg.Service.Name), prettify(data), 0644)
 }
 
 func prettify(data []byte) []byte {
