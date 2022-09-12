@@ -19,6 +19,13 @@ services:
           - /openapi
 
 plugins:
+  - name: correlation-id
+    enabled: true
+    config:
+      header_name: Kong-Request-ID
+      generator: uuid
+      echo_downstream: false
+
   - name: api-catalog-harvester
     enabled: true
     service: echo

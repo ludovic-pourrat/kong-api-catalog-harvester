@@ -5,6 +5,7 @@ type Config struct {
 }
 
 type Log struct {
+	Id        string `json:"id"`
 	Latencies struct {
 		Request int `json:"request"`
 		Kong    int `json:"kong"`

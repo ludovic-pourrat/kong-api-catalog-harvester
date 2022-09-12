@@ -53,15 +53,22 @@ func (conf Config) Log(kong *pdk.PDK) {
 		kong.Log.Err("Error getting log message: ", err.Error())
 		return
 	}
-	process(raw, kong.Log)
+	id, err := kong.Request.GetHeader("Kong-Request-ID")
+	if err != nil {
+		kong.Log.Err("Error getting unique request id: ", err.Error())
+		return
+	}
+	process(id, raw, kong.Log)
 }
 
-func process(raw string, logger log.Log) {
+func process(id string, raw string, logger log.Log) {
 	var log Log
 	if err := json.Unmarshal([]byte(raw), &log); err != nil {
 		logger.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
+	// Id
+	log.Id = id
 	// URL
 	u, err := url.Parse(log.UpstreamURI)
 	if err != nil {
@@ -70,7 +77,7 @@ func process(raw string, logger log.Log) {
 	}
 	// Build specification
 	if _, found := specs[log.Service.Name]; !found {
-		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "0.0.0-snapshot")
+		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	}
 	// Parameters
 	var params []*openapi3.ParameterRef
