@@ -11,6 +11,7 @@ import (
 	"github.com/invopop/yaml"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
 	"github.com/patrickmn/go-cache"
+	"github.com/xeipuuv/gojsonschema"
 	"net/url"
 	"os"
 	"path"
@@ -121,15 +122,13 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		} else {
 			contentType = "application/json"
 		}
-		requestSchema := openapi3.NewSchema()
+		reqBodyJSON, _ := gojsonschema.NewBytesLoader(*rawRequest).LoadJSON()
+		requestSchema, _ := getSchema(reqBodyJSON)
 		requestContent := openapi3.Content{
 			contentType: openapi3.NewMediaType().WithSchema(requestSchema),
 		}
 		request.Content = requestContent
 		request.Description = ""
-		// Convert request to schema ref TODO
-		// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
-		// iterate from json to generate the schema
 		requestRef = &openapi3.RequestBodyRef{
 			Value: request,
 		}
@@ -143,16 +142,14 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	} else {
 		contentType = "application/json"
 	}
-	responseSchema := openapi3.NewSchema()
+	respBodyJSON, _ := gojsonschema.NewStringLoader(*rawResponse).LoadJSON()
+	responseSchema, _ := getSchema(respBodyJSON)
 	responseContent := openapi3.Content{
 		contentType: openapi3.NewMediaType().WithSchema(responseSchema),
 	}
 	response := openapi3.NewResponse()
 	response.WithContent(responseContent)
 	response.WithDescription("")
-	// Convert response to schema ref TODO
-	// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
-	// iterate from json to generate the schema
 	responses[strconv.Itoa(log.Response.Status)] = &openapi3.ResponseRef{
 		Value: response,
 	}
