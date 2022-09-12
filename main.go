@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
+	"github.com/Kong/go-pdk/log"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
 	"net/url"
@@ -56,11 +57,10 @@ func (conf Config) Log(kong *pdk.PDK) {
 		kong.Log.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
-	process(log, kong)
+	process(log, kong.Log)
 }
 
-func process(log Log, kong *pdk.PDK) {
-	logger := kong.Log
+func process(log Log, logger log.Log) {
 	// URL
 	u, err := url.Parse(log.UpstreamURI)
 	if err != nil {
