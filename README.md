@@ -50,3 +50,8 @@ https://stoplight.io/open-source/prism
 Accelerate API development with realistic mock servers, powered by OpenAPI documents.
 
 https://roadmap.stoplight.io/c/66-learning-recording?utm_source=github&utm_medium=prism&utm_campaign=readme
+
+https://api-diff.io
+
+Diff two API versions in seconds and see what has changed.
+
