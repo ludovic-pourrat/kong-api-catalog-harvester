@@ -39,5 +39,5 @@ func MergeResponses(operation *openapi3.Operation, raw string, log types.Log) bo
 	if operation.Responses.Get(log.Response.Status) == nil {
 		responses[strconv.Itoa(log.Response.Status)] = BuildResponse(raw, log)
 	}
-	return true
+	return false
 }

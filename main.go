@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
@@ -12,7 +13,6 @@ import (
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"github.com/patrickmn/go-cache"
 	"net/url"
-	"path"
 	"time"
 )
 
@@ -20,8 +20,9 @@ var Version = "0.0.1"
 var Priority = 1
 var requests = cache.New(5*time.Minute, 10*time.Minute)
 var responses = cache.New(5*time.Minute, 10*time.Minute)
-var specs = make(map[string]*openapi3.T)              // FIXME add mutex
-var operations = make(map[string]*openapi3.Operation) // FIXME add mutex
+var specs = make(map[string]*openapi3.T)                         // FIXME add mutex
+var operations = make(map[string]map[string]*openapi3.Operation) // FIXME add mutex
+var registeredPaths = make(map[string]map[string]string)
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -108,39 +109,53 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	}
 	// search specification
 	if _, found := specs[log.Service.Name]; !found {
+		operations[log.Service.Name] = make(map[string]*openapi3.Operation)
+		registeredPaths[log.Service.Name] = make(map[string]string)
 		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	}
+	logger.Warn("Operation path - ", " url : ", u.Path, " method :", log.Request.Method)
 	// match
 	matched, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	// url
+	url := factories.CreateParameterizedPath(u.Path)
+	var name string
 	if matched == false {
 		// parameters
-		params := factories.BuildParams(log, logger)
+		params := factories.BuildParams(url, log, logger)
 		// request
 		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
 		// response
 		operationResponse := factories.BuildResponses(*rawResponse, log)
 		// operation
+		name = utils.GetName(log.Request.Method, url)
 		operation := &openapi3.Operation{
-			OperationID: path.Base(u.Path),
+			OperationID: name,
 			Parameters:  params,
 			RequestBody: operationRequest,
 			Responses:   operationResponse,
 		}
-		specs[log.Service.Name].AddOperation(u.Path, log.Request.Method, operation)
-		operations[log.Service.Name] = operation
+		specs[log.Service.Name].AddOperation(url, log.Request.Method, operation)
+		operations[log.Service.Name][name] = operation
+		registeredPaths[log.Service.Name][name] = url
 		updated = true
+		// validate
+		err := specs[log.Service.Name].Validate(context.Background())
+		if err != nil {
+			logger.Warn(err)
+		}
 	} else {
 		// merge
-		logger.Warn("Operation matched - ", "path : ", u.Path, "method : ", log.Request.Method, "content-type : ", contentType)
-		operation := operations[log.Service.Name]
-		if factories.MergeParams(operation, log, logger) ||
-			factories.MergeRequest(operation, *rawRequest, contentType, log) ||
-			factories.MergeResponses(operation, *rawResponse, log) {
+		logger.Warn("Operation matched - ", "path : ", url, " method : ", log.Request.Method, " content-type : ", contentType)
+		name = utils.GetName(log.Request.Method, url)
+		loaded := operations[log.Service.Name][name]
+		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], log, logger) ||
+			factories.MergeRequest(loaded, *rawRequest, contentType, log) ||
+			factories.MergeResponses(loaded, *rawResponse, log) {
 			updated = true
 		}
 	}
 	if updated {
-		shared.Write(log.Service.Name, specs[log.Service.Name], logger)
+		utils.Write(log.Service.Name, specs[log.Service.Name], logger)
 	}
 }
 

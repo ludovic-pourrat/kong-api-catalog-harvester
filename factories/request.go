@@ -29,5 +29,5 @@ func BuildRequest(raw []byte, contentType string, log types.Log) *openapi3.Reque
 func MergeRequest(operation *openapi3.Operation, raw []byte, contentType string, log types.Log) bool {
 	var requestBodyRef *openapi3.RequestBodyRef
 	operation.RequestBody = requestBodyRef
-	return true
+	return false
 }

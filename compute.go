@@ -8,7 +8,6 @@ import (
 )
 
 func match(method string, path string, contentType string, specification *openapi3.T) (bool, error) {
-
 	router, err := gorillamux.NewRouter(specification)
 	if err != nil {
 		return false, err
