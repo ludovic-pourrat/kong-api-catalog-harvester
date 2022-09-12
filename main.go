@@ -10,17 +10,19 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/invopop/yaml"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
+	"github.com/patrickmn/go-cache"
 	"net/url"
 	"os"
 	"path"
 	"strconv"
+	"time"
 )
 
 var Version = "0.0.1"
 var Priority = 1
+var requests = cache.New(5*time.Minute, 10*time.Minute)
+var responses = cache.New(5*time.Minute, 10*time.Minute)
 var specs = make(map[string]*openapi3.T) // FIXME add mutex
-var rawRequestBody string                // FIXME add mutex
-var rawResponseBody string               // FIXME add mutex
 
 func (conf Config) Active() bool {
 	if conf.PluginActive != nil {
@@ -31,17 +33,23 @@ func (conf Config) Active() bool {
 
 func (conf Config) Response(kong *pdk.PDK) {
 	logger := kong.Log
-	bytes, err := kong.Request.GetRawBody()
+	id, err := kong.Request.GetHeader("Kong-Request-ID")
+	if err != nil {
+		kong.Log.Err("Error getting unique request id: ", err.Error())
+		return
+	}
+	request, err := kong.Request.GetRawBody()
 	if err != nil {
 		logger.Err(err)
 		return
 	}
-	rawRequestBody = string(bytes)
-	rawResponseBody, err = kong.ServiceResponse.GetRawBody()
+	requests.SetDefault(id, &request)
+	response, err := kong.ServiceResponse.GetRawBody()
 	if err != nil {
 		logger.Err(err)
 		return
 	}
+	responses.SetDefault(id, &response)
 }
 
 func (conf Config) Log(kong *pdk.PDK) {
@@ -68,8 +76,11 @@ func process(id string, raw string, logger log.Log) {
 		logger.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
-	// Id
-	log.Id = id
+	// retrieve request and response from cache
+	//requestRaw, _ := requests.Get(id)
+	defer requests.Delete(id)
+	//responseRaw, _ := responses.Get(id)
+	defer responses.Delete(id)
 	// URL
 	u, err := url.Parse(log.UpstreamURI)
 	if err != nil {
