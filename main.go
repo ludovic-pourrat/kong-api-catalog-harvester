@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,10 +19,6 @@ var specs = make(map[string]*openapi3.T) // FIXME add mutex
 var rawRequestBody string                // FIXME add mutex
 var rawResponseBody string               // FIXME add mutex
 
-type Config struct {
-	PluginActive *bool `json:"active"`
-}
-
 func (conf Config) Active() bool {
 	if conf.PluginActive != nil {
 		return *conf.PluginActive
@@ -31,77 +26,8 @@ func (conf Config) Active() bool {
 	return false
 }
 
-func New() interface{} {
-	return &Config{}
-}
-
-type LogMsg struct {
-	Latencies struct {
-		Request int `json:"request"`
-		Kong    int `json:"kong"`
-		Proxy   int `json:"proxy"`
-	} `json:"latencies"`
-	Service struct {
-		Host           string `json:"host"`
-		CreatedAt      int    `json:"created_at"`
-		ConnectTimeout int    `json:"connect_timeout"`
-		ID             string `json:"id"`
-		Name           string `json:"name"`
-		Protocol       string `json:"protocol"`
-		ReadTimeout    int    `json:"read_timeout"`
-		Port           int    `json:"port"`
-		Path           string `json:"path"`
-		UpdatedAt      int    `json:"updated_at"`
-		WriteTimeout   int    `json:"write_timeout"`
-		Retries        int    `json:"retries"`
-		WsID           string `json:"ws_id"`
-	} `json:"service"`
-	Request struct {
-		Querystring map[string]interface{} `json:"querystring"`
-		Size        int                    `json:"size"`
-		URI         string                 `json:"uri"`
-		URL         string                 `json:"url"`
-		Headers     map[string]interface{} `json:"headers"`
-		Method      string                 `json:"method"`
-	} `json:"request"`
-	Tries []struct {
-		BalancerLatency int    `json:"balancer_latency"`
-		Port            int    `json:"port"`
-		BalancerStart   int64  `json:"balancer_start"`
-		IP              string `json:"ip"`
-	} `json:"tries"`
-	ClientIP    string `json:"client_ip"`
-	Workspace   string `json:"workspace"`
-	UpstreamURI string `json:"upstream_uri"`
-	Response    struct {
-		Headers map[string]interface{} `json:"headers"`
-		Status  int                    `json:"status"`
-		Size    int                    `json:"size"`
-	} `json:"response"`
-	Route struct {
-		ID                      string   `json:"id"`
-		Paths                   []string `json:"paths"`
-		Protocols               []string `json:"protocols"`
-		StripPath               bool     `json:"strip_path"`
-		CreatedAt               int      `json:"created_at"`
-		WsID                    string   `json:"ws_id"`
-		RequestBuffering        bool     `json:"request_buffering"`
-		UpdatedAt               int      `json:"updated_at"`
-		PreserveHost            bool     `json:"preserve_host"`
-		RegexPriority           int      `json:"regex_priority"`
-		ResponseBuffering       bool     `json:"response_buffering"`
-		HTTPSRedirectStatusCode int      `json:"https_redirect_status_code"`
-		PathHandling            string   `json:"path_handling"`
-		Service                 struct {
-			ID string `json:"id"`
-		} `json:"service"`
-	} `json:"route"`
-	StartedAt int64 `json:"started_at"`
-}
-
 func (conf Config) Response(kong *pdk.PDK) {
 	logger := kong.Log
-
 	bytes, err := kong.Request.GetRawBody()
 	if err != nil {
 		logger.Err(err)
@@ -120,38 +46,38 @@ func (conf Config) Log(kong *pdk.PDK) {
 		return
 	}
 	// get and parse log message
-	s, err := kong.Log.Serialize()
+	data, err := kong.Log.Serialize()
 	if err != nil {
 		kong.Log.Err("Error getting log message: ", err.Error())
 		return
 	}
-	process(s, kong)
-}
-
-func process(s string, kong *pdk.PDK) {
-	var msg LogMsg
-	logger := kong.Log
-	if err := json.Unmarshal([]byte(s), &msg); err != nil {
-		_ = logger.Err("Error unmarshalling log message: ", err.Error())
+	var log Log
+	if err := json.Unmarshal([]byte(data), &log); err != nil {
+		kong.Log.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
+	process(log, kong)
+}
+
+func process(log Log, kong *pdk.PDK) {
+	logger := kong.Log
 	// URL
-	u, err := url.Parse(msg.UpstreamURI)
+	u, err := url.Parse(log.UpstreamURI)
 	if err != nil {
 		logger.Err(err)
 		return
 	}
 	// Build specification
-	if _, found := specs[msg.Service.Name]; !found {
+	if _, found := specs[log.Service.Name]; !found {
 		info := &openapi3.Info{
-			Title:   msg.Service.Name,
-			Version: "0.0.0",
+			Title:   log.Service.Name,
+			Version: "0.0.0-snapshot",
 		}
-		specs[msg.Service.Name] = &openapi3.T{OpenAPI: "3.0.0", Info: info}
+		specs[log.Service.Name] = &openapi3.T{OpenAPI: "3.0.0", Info: info}
 	}
 	// Parameters
 	var params []*openapi3.ParameterRef
-	for k, v := range msg.Request.Querystring {
+	for k, v := range log.Request.Querystring {
 		var schema *openapi3.Schema
 		switch v.(type) {
 		case string:
@@ -168,25 +94,40 @@ func process(s string, kong *pdk.PDK) {
 	}
 	// Request
 	request := openapi3.NewRequestBody()
-	requestContent := openapi3.Content{}
-	if _, found := msg.Request.Headers["content-type"]; found {
-		requestContent[msg.Request.Headers["content-type"].(string)] = openapi3.NewMediaType()
+	var contentType string
+	if _, found := log.Request.Headers["content-type"]; found {
+		contentType = log.Request.Headers["content-type"].(string)
+	} else {
+		contentType = "application/json"
+	}
+	requestSchema := openapi3.NewSchema()
+	requestContent := openapi3.Content{
+		contentType: openapi3.NewMediaType().WithSchema(requestSchema),
 	}
 	request.Content = requestContent
 	// Convert request to schema ref TODO
+	// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
+	// iterate from json to generate the schema
 	requestRef := &openapi3.RequestBodyRef{
 		Value: request,
 	}
 	// Response
 	responses := openapi3.NewResponses()
-	responseContent := openapi3.Content{}
-	if _, found := msg.Response.Headers["content-type"]; found {
-		responseContent[msg.Response.Headers["content-type"].(string)] = openapi3.NewMediaType()
+	if _, found := log.Response.Headers["content-type"]; found {
+		contentType = log.Response.Headers["content-type"].(string)
+	} else {
+		contentType = "application/json"
+	}
+	responseSchema := openapi3.NewSchema()
+	responseContent := openapi3.Content{
+		contentType: openapi3.NewMediaType().WithSchema(responseSchema),
 	}
 	response := openapi3.NewResponse()
 	response.WithContent(responseContent)
 	// Convert response to schema ref TODO
-	responses[strconv.Itoa(msg.Response.Status)] = &openapi3.ResponseRef{
+	// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
+	// iterate from json to generate the schema
+	responses[strconv.Itoa(log.Response.Status)] = &openapi3.ResponseRef{
 		Value: response,
 	}
 	// Operation
@@ -196,28 +137,20 @@ func process(s string, kong *pdk.PDK) {
 		RequestBody: requestRef,
 		Responses:   responses,
 	}
-	specs[msg.Service.Name].AddOperation(u.Path, msg.Request.Method, op)
+	specs[log.Service.Name].AddOperation(u.Path, log.Request.Method, op)
 	// Validate
-	err = specs[msg.Service.Name].Validate(context.Background())
+	err = specs[log.Service.Name].Validate(context.Background())
 	if err != nil {
 		logger.Warn(err)
 	}
 	// Marshal to json
-	data, err := specs[msg.Service.Name].MarshalJSON()
+	data, err := specs[log.Service.Name].MarshalJSON()
 	if err != nil {
 		logger.Err(err)
 		return
 	}
 	// Write to file
-	os.WriteFile(fmt.Sprintf("/logs/%s.json", msg.Service.Name), prettify(data), 0644)
-}
-
-func prettify(data []byte) []byte {
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, data, "", "  "); err != nil {
-		return []byte("")
-	}
-	return prettyJSON.Bytes()
+	os.WriteFile(fmt.Sprintf("/logs/%s.json", log.Service.Name), prettify(data), 0644)
 }
 
 func main() {
