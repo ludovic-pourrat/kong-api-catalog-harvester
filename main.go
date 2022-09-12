@@ -8,6 +8,7 @@ import (
 	"github.com/Kong/go-pdk/log"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/invopop/yaml"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
 	"net/url"
 	"os"
@@ -96,24 +97,30 @@ func process(id string, raw string, logger log.Log) {
 		}
 		params = append(params, &param)
 	}
-	// Request
-	request := openapi3.NewRequestBody()
 	var contentType string
-	if _, found := log.Request.Headers["content-type"]; found {
-		contentType = log.Request.Headers["content-type"].(string)
+	var requestRef *openapi3.RequestBodyRef
+	// Request
+	if log.Request.Method != "GET" && log.Request.Method != "DELETE" {
+		request := openapi3.NewRequestBody()
+		if _, found := log.Request.Headers["content-type"]; found {
+			contentType = log.Request.Headers["content-type"].(string)
+		} else {
+			contentType = "application/json"
+		}
+		requestSchema := openapi3.NewSchema()
+		requestContent := openapi3.Content{
+			contentType: openapi3.NewMediaType().WithSchema(requestSchema),
+		}
+		request.Content = requestContent
+		request.Description = ""
+		// Convert request to schema ref TODO
+		// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
+		// iterate from json to generate the schema
+		requestRef = &openapi3.RequestBodyRef{
+			Value: request,
+		}
 	} else {
-		contentType = "application/json"
-	}
-	requestSchema := openapi3.NewSchema()
-	requestContent := openapi3.Content{
-		contentType: openapi3.NewMediaType().WithSchema(requestSchema),
-	}
-	request.Content = requestContent
-	// Convert request to schema ref TODO
-	// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
-	// iterate from json to generate the schema
-	requestRef := &openapi3.RequestBodyRef{
-		Value: request,
+		requestRef = nil
 	}
 	// Response
 	responses := openapi3.NewResponses()
@@ -128,6 +135,7 @@ func process(id string, raw string, logger log.Log) {
 	}
 	response := openapi3.NewResponse()
 	response.WithContent(responseContent)
+	response.WithDescription("")
 	// Convert response to schema ref TODO
 	// https://github.com/openclarity/speculator/blob/c8dcbd330eaf8a6551c5fd5b8fde6becdd06c6b5/pkg/spec/operation.go#L34
 	// iterate from json to generate the schema
@@ -147,14 +155,14 @@ func process(id string, raw string, logger log.Log) {
 	if err != nil {
 		logger.Warn(err)
 	}
-	// Marshal to json
-	data, err := specs[log.Service.Name].MarshalJSON()
+	// Marshal to yaml
+	data, err := yaml.Marshal(specs[log.Service.Name])
 	if err != nil {
 		logger.Err(err)
 		return
 	}
 	// Write to file
-	os.WriteFile(fmt.Sprintf("/logs/%s.json", log.Service.Name), prettify(data), 0644)
+	os.WriteFile(fmt.Sprintf("/logs/%s.yaml", log.Service.Name), data, 0644)
 }
 
 func main() {
