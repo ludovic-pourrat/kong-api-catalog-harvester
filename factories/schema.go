@@ -1,4 +1,4 @@
-package shared
+package factories
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func GetSchema(value interface{}) (schema *openapi3.Schema, err error) {
+func BuildSchema(value interface{}) (schema *openapi3.Schema, err error) {
 	switch value.(type) {
 	case bool:
 		schema = openapi3.NewBoolSchema()
@@ -72,7 +72,7 @@ func getObjectSchema(value interface{}) (schema *openapi3.Schema, err error) {
 		return nil, fmt.Errorf("failed to cast to string map. value=%v: %w", value, err)
 	}
 	for key, val := range stringMapE {
-		if s, err := GetSchema(val); err != nil {
+		if s, err := BuildSchema(val); err != nil {
 			return nil, fmt.Errorf("failed to get schema from string map. key=%v, value=%v: %w", key, val, err)
 		} else {
 			schema = schema.WithProperty(escapeString(key), s)
@@ -97,7 +97,7 @@ func getArraySchema(value interface{}) (schema *openapi3.Schema, err error) {
 	// in order to support mixed type array we will map all schemas by schema type
 	schemaTypeToSchema := make(map[string]*openapi3.Schema)
 	for i := range sliceE {
-		item, err := GetSchema(sliceE[i])
+		item, err := BuildSchema(sliceE[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to get items schema from slice. value=%v: %w", sliceE[i], err)
 		}

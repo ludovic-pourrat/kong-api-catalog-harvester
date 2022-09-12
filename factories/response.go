@@ -2,7 +2,6 @@ package factories
 
 import (
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/ludovic-pourrat/kong-api-catalog-harvester/shared"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/xeipuuv/gojsonschema"
 	"strconv"
@@ -16,7 +15,7 @@ func BuildResponse(raw string, log types.Log) *openapi3.ResponseRef {
 		contentType = "application/json"
 	}
 	respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
-	responseSchema, _ := shared.GetSchema(respBodyJSON)
+	responseSchema, _ := BuildSchema(respBodyJSON)
 	responseContent := openapi3.Content{
 		contentType: openapi3.NewMediaType().WithSchema(responseSchema),
 	}

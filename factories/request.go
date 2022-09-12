@@ -2,7 +2,6 @@ package factories
 
 import (
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/ludovic-pourrat/kong-api-catalog-harvester/shared"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -12,7 +11,7 @@ func BuildRequest(raw []byte, contentType string, log types.Log) *openapi3.Reque
 	if log.Request.Method != "GET" && log.Request.Method != "DELETE" {
 		request := openapi3.NewRequestBody()
 		reqBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
-		requestSchema, _ := shared.GetSchema(reqBodyJSON)
+		requestSchema, _ := BuildSchema(reqBodyJSON)
 		requestContent := openapi3.Content{
 			contentType: openapi3.NewMediaType().WithSchema(requestSchema),
 		}
