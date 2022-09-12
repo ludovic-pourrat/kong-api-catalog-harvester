@@ -50,6 +50,8 @@ func (conf Config) Response(kong *pdk.PDK) {
 		return
 	}
 	responses.SetDefault(id, &response)
+	//os.WriteFile("/logs/request", request, 0644)
+	//os.WriteFile("/logs/response", []byte(response), 0644)
 }
 
 func (conf Config) Log(kong *pdk.PDK) {
@@ -57,7 +59,7 @@ func (conf Config) Log(kong *pdk.PDK) {
 		return
 	}
 	// get and parse log message
-	raw, err := kong.Log.Serialize()
+	rawLog, err := kong.Log.Serialize()
 	if err != nil {
 		kong.Log.Err("Error getting log message: ", err.Error())
 		return
@@ -67,20 +69,21 @@ func (conf Config) Log(kong *pdk.PDK) {
 		kong.Log.Err("Error getting unique request id: ", err.Error())
 		return
 	}
-	process(id, raw, kong.Log)
+	// retrieve request and response from cache
+	rawRequest, _ := requests.Get(id)
+	defer requests.Delete(id)
+	rawResponse, _ := responses.Get(id)
+	defer responses.Delete(id)
+	process(&rawLog, rawRequest.(*[]byte), rawResponse.(*string), kong.Log)
+	//os.WriteFile("/logs/log", []byte(rawLog), 0644)
 }
 
-func process(id string, raw string, logger log.Log) {
+func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log.Log) {
 	var log Log
-	if err := json.Unmarshal([]byte(raw), &log); err != nil {
+	if err := json.Unmarshal([]byte(*rawLog), &log); err != nil {
 		logger.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
-	// retrieve request and response from cache
-	//requestRaw, _ := requests.Get(id)
-	defer requests.Delete(id)
-	//responseRaw, _ := responses.Get(id)
-	defer responses.Delete(id)
 	// URL
 	u, err := url.Parse(log.UpstreamURI)
 	if err != nil {
