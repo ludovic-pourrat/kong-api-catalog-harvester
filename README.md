@@ -44,7 +44,6 @@ https://www.apiclarity.io/
 
 Open source for API traffic visibility in K8s clusters
 
-
 https://stoplight.io/open-source/prism
 
 Accelerate API development with realistic mock servers, powered by OpenAPI documents.
@@ -54,4 +53,8 @@ https://roadmap.stoplight.io/c/66-learning-recording?utm_source=github&utm_mediu
 https://api-diff.io
 
 Diff two API versions in seconds and see what has changed.
+
+https://www.akitasoftware.com
+
+Powered by eBPF and API traffic analysis, Akita makes it possible for you to understand your API behavior, without having to change code or make custom dashboards.
 
