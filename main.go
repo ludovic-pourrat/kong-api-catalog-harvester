@@ -8,6 +8,7 @@ import (
 	"github.com/Kong/go-pdk/log"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
 	"net/url"
 	"os"
 	"path"
@@ -47,20 +48,20 @@ func (conf Config) Log(kong *pdk.PDK) {
 		return
 	}
 	// get and parse log message
-	data, err := kong.Log.Serialize()
+	raw, err := kong.Log.Serialize()
 	if err != nil {
 		kong.Log.Err("Error getting log message: ", err.Error())
 		return
 	}
-	var log Log
-	if err := json.Unmarshal([]byte(data), &log); err != nil {
-		kong.Log.Err("Error unmarshalling log message: ", err.Error())
-		return
-	}
-	process(log, kong.Log)
+	process(raw, kong.Log)
 }
 
-func process(log Log, logger log.Log) {
+func process(raw string, logger log.Log) {
+	var log Log
+	if err := json.Unmarshal([]byte(raw), &log); err != nil {
+		logger.Err("Error unmarshalling log message: ", err.Error())
+		return
+	}
 	// URL
 	u, err := url.Parse(log.UpstreamURI)
 	if err != nil {
@@ -69,11 +70,7 @@ func process(log Log, logger log.Log) {
 	}
 	// Build specification
 	if _, found := specs[log.Service.Name]; !found {
-		info := &openapi3.Info{
-			Title:   log.Service.Name,
-			Version: "0.0.0-snapshot",
-		}
-		specs[log.Service.Name] = &openapi3.T{OpenAPI: "3.0.0", Info: info}
+		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "0.0.0-snapshot")
 	}
 	// Parameters
 	var params []*openapi3.ParameterRef

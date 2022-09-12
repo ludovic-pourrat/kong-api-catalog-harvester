@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"github.com/Kong/go-pdk/bridge"
 	"github.com/Kong/go-pdk/bridge/bridgetest"
 	"github.com/Kong/go-pdk/log"
@@ -20,12 +19,7 @@ func Test_process(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var item Log
-			if err := json.Unmarshal([]byte(tt.log), &item); err != nil {
-				t.Error(err)
-				t.Fail()
-			}
-			process(item, log.Log{bridge.New(bridgetest.Mock(t, nil))})
+			process(tt.log, log.Log{bridge.New(bridgetest.Mock(t, nil))})
 		})
 	}
 }
