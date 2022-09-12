@@ -104,7 +104,7 @@ func process(id string, raw string, logger log.Log) {
 			logger.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
 		}
 		param := openapi3.ParameterRef{
-			Value: openapi3.NewPathParameter(k).WithSchema(schema),
+			Value: openapi3.NewQueryParameter(k).WithSchema(schema),
 		}
 		params = append(params, &param)
 	}
