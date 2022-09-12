@@ -1,8 +1,4 @@
-package main
-
-type Config struct {
-	PluginActive *bool `json:"active"`
-}
+package types
 
 type Log struct {
 	Id        string `json:"id"`

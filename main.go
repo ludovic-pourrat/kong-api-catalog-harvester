@@ -1,21 +1,18 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
 	"github.com/Kong/go-pdk/log"
 	"github.com/Kong/go-pdk/server"
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/invopop/yaml"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/shared"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/patrickmn/go-cache"
-	"github.com/xeipuuv/gojsonschema"
 	"net/url"
-	"os"
 	"path"
-	"strconv"
 	"time"
 )
 
@@ -23,7 +20,16 @@ var Version = "0.0.1"
 var Priority = 1
 var requests = cache.New(5*time.Minute, 10*time.Minute)
 var responses = cache.New(5*time.Minute, 10*time.Minute)
-var specs = make(map[string]*openapi3.T) // FIXME add mutex
+var specs = make(map[string]*openapi3.T)              // FIXME add mutex
+var operations = make(map[string]*openapi3.Operation) // FIXME add mutex
+
+type Config struct {
+	PluginActive *bool `json:"active"`
+}
+
+func New() interface{} {
+	return &Config{}
+}
 
 func (conf Config) Active() bool {
 	if conf.PluginActive != nil {
@@ -51,8 +57,8 @@ func (conf Config) Response(kong *pdk.PDK) {
 		return
 	}
 	responses.SetDefault(id, &response)
-	//os.WriteFile("/logs/request", request, 0644)
-	//os.WriteFile("/logs/response", []byte(response), 0644)
+	//os.WriteFile("/logs/request.log", request, 0644) TODO remove
+	//os.WriteFile("/logs/response.log", []byte(response), 0644) TODO remove
 }
 
 func (conf Config) Log(kong *pdk.PDK) {
@@ -76,11 +82,13 @@ func (conf Config) Log(kong *pdk.PDK) {
 	rawResponse, _ := responses.Get(id)
 	defer responses.Delete(id)
 	process(&rawLog, rawRequest.(*[]byte), rawResponse.(*string), kong.Log)
-	//os.WriteFile("/logs/log", []byte(rawLog), 0644)
+	//os.WriteFile("/logs/log.log", []byte(rawLog), 0644) TODO remove
 }
 
 func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log.Log) {
-	var log Log
+	var log types.Log
+	var updated = false
+	// build
 	if err := json.Unmarshal([]byte(*rawLog), &log); err != nil {
 		logger.Err("Error unmarshalling log message: ", err.Error())
 		return
@@ -91,89 +99,49 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		logger.Err(err)
 		return
 	}
-	// Build specification
-	if _, found := specs[log.Service.Name]; !found {
-		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
-	}
-	// Parameters
-	var params []*openapi3.ParameterRef
-	for k, v := range log.Request.Querystring {
-		var schema *openapi3.Schema
-		switch v.(type) {
-		case string:
-			schema = openapi3.NewStringSchema()
-		case []interface{}:
-			schema = openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())
-		default:
-			logger.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
-		}
-		param := openapi3.ParameterRef{
-			Value: openapi3.NewQueryParameter(k).WithSchema(schema),
-		}
-		params = append(params, &param)
-	}
+	// content Type
 	var contentType string
-	var requestRef *openapi3.RequestBodyRef
-	// Request
-	if log.Request.Method != "GET" && log.Request.Method != "DELETE" {
-		request := openapi3.NewRequestBody()
-		if _, found := log.Request.Headers["content-type"]; found {
-			contentType = log.Request.Headers["content-type"].(string)
-		} else {
-			contentType = "application/json"
-		}
-		reqBodyJSON, _ := gojsonschema.NewBytesLoader(*rawRequest).LoadJSON()
-		requestSchema, _ := getSchema(reqBodyJSON)
-		requestContent := openapi3.Content{
-			contentType: openapi3.NewMediaType().WithSchema(requestSchema),
-		}
-		request.Content = requestContent
-		request.Description = ""
-		requestRef = &openapi3.RequestBodyRef{
-			Value: request,
-		}
-	} else {
-		requestRef = nil
-	}
-	// Response
-	responses := openapi3.NewResponses()
-	if _, found := log.Response.Headers["content-type"]; found {
-		contentType = log.Response.Headers["content-type"].(string)
+	if _, found := log.Request.Headers["content-type"]; found {
+		contentType = log.Request.Headers["content-type"].(string)
 	} else {
 		contentType = "application/json"
 	}
-	respBodyJSON, _ := gojsonschema.NewStringLoader(*rawResponse).LoadJSON()
-	responseSchema, _ := getSchema(respBodyJSON)
-	responseContent := openapi3.Content{
-		contentType: openapi3.NewMediaType().WithSchema(responseSchema),
+	// search specification
+	if _, found := specs[log.Service.Name]; !found {
+		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	}
-	response := openapi3.NewResponse()
-	response.WithContent(responseContent)
-	response.WithDescription("")
-	responses[strconv.Itoa(log.Response.Status)] = &openapi3.ResponseRef{
-		Value: response,
+	// match
+	matched, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	if matched == false {
+		// parameters
+		params := factories.BuildParams(log, logger)
+		// request
+		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
+		// response
+		operationResponse := factories.BuildResponses(*rawResponse, log)
+		// operation
+		operation := &openapi3.Operation{
+			OperationID: path.Base(u.Path),
+			Parameters:  params,
+			RequestBody: operationRequest,
+			Responses:   operationResponse,
+		}
+		specs[log.Service.Name].AddOperation(u.Path, log.Request.Method, operation)
+		operations[log.Service.Name] = operation
+		updated = true
+	} else {
+		// merge
+		logger.Warn("Operation matched - ", "path : ", u.Path, "method : ", log.Request.Method, "content-type : ", contentType)
+		operation := operations[log.Service.Name]
+		if factories.MergeParams(operation, log, logger) ||
+			factories.MergeRequest(operation, *rawRequest, contentType, log) ||
+			factories.MergeResponses(operation, *rawResponse, log) {
+			updated = true
+		}
 	}
-	// Operation
-	op := &openapi3.Operation{
-		OperationID: path.Base(u.Path),
-		Parameters:  params,
-		RequestBody: requestRef,
-		Responses:   responses,
+	if updated {
+		shared.Write(log.Service.Name, specs[log.Service.Name], logger)
 	}
-	specs[log.Service.Name].AddOperation(u.Path, log.Request.Method, op)
-	// Validate
-	err = specs[log.Service.Name].Validate(context.Background())
-	if err != nil {
-		logger.Warn(err)
-	}
-	// Marshal to yaml
-	data, err := yaml.Marshal(specs[log.Service.Name])
-	if err != nil {
-		logger.Err(err)
-		return
-	}
-	// Write to file
-	os.WriteFile(fmt.Sprintf("/logs/%s.yaml", log.Service.Name), data, 0644)
 }
 
 func main() {

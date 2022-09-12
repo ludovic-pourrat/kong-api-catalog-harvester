@@ -6,6 +6,8 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
+COPY shared/*.go ./shared/
+COPY types/*.go ./types/
 COPY factories/*.go ./factories/
 COPY *.go ./
 

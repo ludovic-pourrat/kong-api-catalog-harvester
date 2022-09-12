@@ -42,7 +42,7 @@ services:
 
   newman:
     build: ./tools/newman
-    command: newman run petstore.openapi.postman-collection.json
+    command: newman run petstore.openapi.postman-collection.json -n 8
     depends_on:
       - kong
       - prism
