@@ -12,7 +12,12 @@ func match(method string, path string, contentType string, specification *openap
 	if err != nil {
 		return false, err
 	}
-	search, err := http.NewRequest(method, path, strings.NewReader(`{}`))
+	var search *http.Request
+	if method == "GET" || method == "DELETE" {
+		search, err = http.NewRequest(method, path, http.NoBody)
+	} else {
+		search, err = http.NewRequest(method, path, strings.NewReader(`{}`))
+	}
 	if err != nil {
 		return false, err
 	}

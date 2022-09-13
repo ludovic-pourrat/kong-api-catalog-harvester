@@ -1,14 +1,9 @@
 package utils
 
 import (
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
 	"strings"
 )
-
-func GetOperationName(operation *openapi3.Operation) string {
-	return operation.OperationID
-}
 
 func GetName(method string, url string) string {
 	pathParts := strings.Split(url, "/")
