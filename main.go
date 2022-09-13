@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
@@ -114,15 +113,9 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	}
 
-	_ = specs[log.Service.Name].Validate(context.Background())
-
 	logger.Warn("Operation match - ", " url : ", u.Path, " method :", log.Request.Method, " content-type - ", contentType)
 	// match
-	matched, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
-	if err != nil {
-		logger.Err(err)
-		return
-	}
+	matched, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
 	// url
 	url := factories.CreateParameterizedPath(u.Path)
 	var name string
@@ -142,6 +135,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 			Responses:   operationResponse,
 		}
 		specs[log.Service.Name].AddOperation(url, log.Request.Method, operation)
+		factories.AddPath(specs[log.Service.Name].Paths, url, log.Request.Method, operation)
 		operations[log.Service.Name][name] = operation
 		registeredPaths[log.Service.Name][name] = url
 		updated = true

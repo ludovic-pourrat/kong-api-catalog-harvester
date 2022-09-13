@@ -27,5 +27,4 @@ func match(method string, path string, contentType string, specification *openap
 	} else {
 		return true, nil
 	}
-
 }

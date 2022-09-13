@@ -10,5 +10,9 @@ func BuildSpecification(name string, version string) *openapi3.T {
 		Description: "API harvested from live traffic",
 	}
 
-	return &openapi3.T{OpenAPI: version, Info: info}
+	return &openapi3.T{
+		OpenAPI: version,
+		Info:    info,
+		Paths:   openapi3.Paths{},
+	}
 }
