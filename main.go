@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
@@ -116,6 +115,10 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	logger.Warn("Operation path - ", " url : ", u.Path, " method :", log.Request.Method)
 	// match
 	matched, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	if err != nil {
+		logger.Err(err)
+		return
+	}
 	// url
 	url := factories.CreateParameterizedPath(u.Path)
 	var name string
@@ -138,11 +141,6 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		operations[log.Service.Name][name] = operation
 		registeredPaths[log.Service.Name][name] = url
 		updated = true
-		// validate
-		err := specs[log.Service.Name].Validate(context.Background())
-		if err != nil {
-			logger.Warn(err)
-		}
 	} else {
 		// merge
 		logger.Warn("Operation matched - ", "path : ", url, " method : ", log.Request.Method, " content-type : ", contentType)
