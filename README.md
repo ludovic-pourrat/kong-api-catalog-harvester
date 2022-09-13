@@ -12,6 +12,21 @@ Kong plugin to harvest your API catalog. Turn actual API traffic into valuable d
 - Detect API changes and check conformance from your live services.
 - Track sensitive data flows
 
+## Getting Started
+
+Build the required images
+
+``` bash
+docker-compose build
+```
+
+Run the stack
+
+``` bash
+docker-compose up
+```
+
+See below end-to-end test execution
 
 ![alt text](./compose.gif "docker compose up")
 
