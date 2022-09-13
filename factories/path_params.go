@@ -15,8 +15,16 @@ type PathParam struct {
 	*spec.Parameter
 }
 
-func generateParamName() string {
-
+func generateParamName(pathPart string) string {
+	if isNumber(pathPart) {
+		return "id"
+	}
+	if isUUID(pathPart) {
+		return "uuid"
+	}
+	if isToken(pathPart) {
+		return "token"
+	}
 	var seededRand *rand.Rand = rand.New(
 		rand.NewSource(time.Now().UnixNano()))
 
@@ -34,7 +42,7 @@ func CreateParameterizedPath(path string) string {
 	for _, part := range pathParts {
 		// if part is a suspect param, replace it with a param name, otherwise do nothing
 		if isSuspectPathParam(part) {
-			paramName := generateParamName()
+			paramName := generateParamName(part)
 			ParameterizedPathParts = append(ParameterizedPathParts, "{"+paramName+"}")
 		} else {
 			ParameterizedPathParts = append(ParameterizedPathParts, part)
@@ -51,7 +59,7 @@ func getParamSchema(pathPart string) *spec.Schema {
 		return spec.NewInt64Schema()
 	} else if isUUID(pathPart) {
 		return spec.NewUUIDSchema()
-	} else if isMixed(pathPart) {
+	} else if isToken(pathPart) {
 		return spec.NewStringSchema()
 	}
 	return spec.NewStringSchema()
@@ -64,7 +72,7 @@ func isSuspectPathParam(pathPart string) bool {
 	if isUUID(pathPart) {
 		return true
 	}
-	if isMixed(pathPart) {
+	if isToken(pathPart) {
 		return true
 	}
 	return false
@@ -79,7 +87,7 @@ func isUUID(pathPart string) bool {
 	return err == nil
 }
 
-func isMixed(pathPart string) bool {
+func isToken(pathPart string) bool {
 	const maxLen = 256
 	const minDigitsLen = 1
 	if len(pathPart) < maxLen {

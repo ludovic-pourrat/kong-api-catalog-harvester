@@ -20,8 +20,6 @@ info:
 externalDocs:
   description: Find out more about Swagger
   url: 'http://swagger.io'
-servers:
-  - url: /api/v3
 tags:
   - name: pet
     description: Everything about your Pets
@@ -91,8 +89,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid status value
   /pet/findByTags:
     get:
       tags:
@@ -121,7 +117,7 @@ paths:
                   $ref: '#/components/schemas/Pet'
         '400':
           description: Invalid tag value
-  '/pet/{petId}':
+  '/pet/{id}':
     get:
       tags:
         - pet
@@ -129,7 +125,7 @@ paths:
       description: Returns a single pet
       operationId: getPetById
       parameters:
-        - name: petId
+        - name: id
           in: path
           description: ID of pet to return
           required: true
@@ -143,10 +139,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Pet'
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: Pet not found
     post:
       tags:
         - pet
@@ -154,7 +146,7 @@ paths:
       description: ''
       operationId: updatePetWithForm
       parameters:
-        - name: petId
+        - name: id
           in: path
           description: ID of pet that needs to be updated
           required: true
@@ -174,10 +166,6 @@ paths:
       responses:
         '200':
           description: OK
-        '201':
-          description: Created
-        '405':
-          description: Invalid input
       requestBody:
         content:
           application/json:
@@ -190,7 +178,7 @@ paths:
       description: ''
       operationId: deletePet
       parameters:
-        - name: petId
+        - name: id
           in: path
           description: Pet id to delete
           required: true
@@ -200,8 +188,6 @@ paths:
       responses:
         '204':
           description: Invalid pet value
-        '401':
-          description: Unauthorized
   /store/inventory:
     get:
       tags:
@@ -242,9 +228,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        '405':
-          description: Invalid input
-  '/store/order/{orderId}':
+  '/store/order/{id}':
     get:
       tags:
         - store
@@ -252,7 +236,7 @@ paths:
       description: For valid response try integer IDs with value <= 5 or > 10. Other values will generate exceptions.
       operationId: getOrderById
       parameters:
-        - name: orderId
+        - name: id
           in: path
           description: ID of order that needs to be fetched
           required: true
@@ -266,10 +250,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: Order not found
     delete:
       tags:
         - store
@@ -277,7 +257,7 @@ paths:
       description: For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors
       operationId: deleteOrder
       parameters:
-        - name: orderId
+        - name: id
           in: path
           description: ID of the order that needs to be deleted
           required: true
@@ -287,16 +267,6 @@ paths:
       responses:
         '204':
           description: No Content
-        '400':
-          description: Invalid ID supplied
-        '401':
-          description: Unauthorized
-        '403':
-          description: Forbidden
-        '404':
-          description: Order not found
-        '500':
-          description: Internal Server Error
 components:
   schemas:
     Order:
@@ -306,7 +276,7 @@ components:
           type: integer
           format: int64
           example: 10
-        petId:
+        id:
           type: integer
           format: int64
           example: 198772

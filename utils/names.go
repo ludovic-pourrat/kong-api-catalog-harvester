@@ -13,7 +13,7 @@ func GetName(method string, url string) string {
 			if !factories.IsPathParam(path) {
 				name += "-" + path
 			} else {
-				name += "-by-x"
+				name += "-by-" + factories.GetPathParam(path)
 			}
 		}
 	}
