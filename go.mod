@@ -2,9 +2,12 @@ module github.com/ludovic-pourrat/kong-api-catalog-harvester
 
 go 1.19
 
+replace github.com/getkin/kin-openapi => github.com/ludovic-pourrat/kin-openapi v0.0.0-20220913095341-753d47b4845d
+
 require (
 	github.com/Kong/go-pdk v0.8.0
 	github.com/getkin/kin-openapi v0.100.0
+	github.com/google/uuid v1.3.0
 	github.com/invopop/yaml v0.1.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/spf13/cast v1.5.0
@@ -14,7 +17,6 @@ require (
 require (
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.5 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/stretchr/testify v1.7.0 // indirect

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Kong/go-pdk"
@@ -112,7 +113,10 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		registeredPaths[log.Service.Name] = make(map[string]string)
 		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	}
-	logger.Warn("Operation path - ", " url : ", u.Path, " method :", log.Request.Method)
+
+	_ = specs[log.Service.Name].Validate(context.Background())
+
+	logger.Warn("Operation match - ", " url : ", u.Path, " method :", log.Request.Method, " content-type - ", contentType)
 	// match
 	matched, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
 	if err != nil {
@@ -122,9 +126,9 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	// url
 	url := factories.CreateParameterizedPath(u.Path)
 	var name string
-	if matched == false {
+	if !matched {
 		// parameters
-		params := factories.BuildParams(url, log, logger)
+		params := factories.BuildParams(url, u.Path, log, logger)
 		// request
 		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
 		// response
@@ -143,17 +147,21 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		updated = true
 	} else {
 		// merge
-		logger.Warn("Operation matched - ", "path : ", url, " method : ", log.Request.Method, " content-type : ", contentType)
+		logger.Warn("Operation matched - ", "url : ", url, " method : ", log.Request.Method, " content-type : ", contentType)
 		name = utils.GetName(log.Request.Method, url)
 		loaded := operations[log.Service.Name][name]
-		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], log, logger) ||
+		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger) ||
 			factories.MergeRequest(loaded, *rawRequest, contentType, log) ||
 			factories.MergeResponses(loaded, *rawResponse, log) {
 			updated = true
 		}
 	}
 	if updated {
-		utils.Write(log.Service.Name, specs[log.Service.Name], logger)
+		err = utils.Write(log.Service.Name, specs[log.Service.Name])
+		if err != nil {
+			logger.Err(err)
+			return
+		}
 	}
 }
 

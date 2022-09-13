@@ -4,7 +4,6 @@ import (
 	spec "github.com/getkin/kin-openapi/openapi3"
 	"github.com/google/uuid"
 	"math/rand"
-	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -27,8 +26,6 @@ func generateParamName() string {
 	}
 	return string(b)
 }
-
-var digitCheck = regexp.MustCompile(`^[0-9]+$`)
 
 func CreateParameterizedPath(path string) string {
 	var ParameterizedPathParts []string
@@ -74,7 +71,7 @@ func isSuspectPathParam(pathPart string) bool {
 }
 
 func isNumber(pathPart string) bool {
-	return digitCheck.MatchString(pathPart)
+	return countDigitsInString(pathPart) > 0
 }
 
 func isUUID(pathPart string) bool {
@@ -84,17 +81,27 @@ func isUUID(pathPart string) bool {
 
 func isMixed(pathPart string) bool {
 	const maxLen = 256
-	const minDigitsLen = 2
+	const minDigitsLen = 1
 	if len(pathPart) < maxLen {
 		return false
 	}
-	return countDigitsInString(pathPart) > minDigitsLen
+	return countDigitsAndLetterInString(pathPart) > minDigitsLen
+}
+
+func countDigitsAndLetterInString(s string) int {
+	count := 0
+	for _, c := range s {
+		if unicode.IsNumber(c) || unicode.IsLetter(c) {
+			count++
+		}
+	}
+	return count
 }
 
 func countDigitsInString(s string) int {
 	count := 0
 	for _, c := range s {
-		if unicode.IsNumber(c) || unicode.IsLetter(c) {
+		if unicode.IsNumber(c) {
 			count++
 		}
 	}

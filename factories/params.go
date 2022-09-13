@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func BuildParams(url string, log types.Log, logger log.Log) []*openapi3.ParameterRef {
+func BuildParams(url string, path string, log types.Log, logger log.Log) []*openapi3.ParameterRef {
 	var params []*openapi3.ParameterRef
 	for k, v := range log.Request.Querystring {
 		var schema *openapi3.Schema
@@ -27,13 +27,14 @@ func BuildParams(url string, log types.Log, logger log.Log) []*openapi3.Paramete
 	}
 
 	parts := strings.Split(url, "/")
+	values := strings.Split(path, "/")
 
-	for _, part := range parts {
+	for index, part := range parts {
 		if IsPathParam(part) {
 			part = strings.TrimPrefix(part, "{")
 			part = strings.TrimSuffix(part, "}")
 			param := openapi3.ParameterRef{
-				Value: openapi3.NewPathParameter(part).WithSchema(getParamSchema(part)),
+				Value: openapi3.NewPathParameter(part).WithSchema(getParamSchema(values[index])),
 			}
 			params = append(params, &param)
 		}
@@ -42,10 +43,10 @@ func BuildParams(url string, log types.Log, logger log.Log) []*openapi3.Paramete
 	return params
 }
 
-func MergeParams(operation *openapi3.Operation, url string, log types.Log, logger log.Log) bool {
+func MergeParams(operation *openapi3.Operation, url string, path string, log types.Log, logger log.Log) bool {
 	var params []*openapi3.ParameterRef
 	var updated = false
-	params = BuildParams(url, log, logger)
+	params = BuildParams(url, path, log, logger)
 	for _, param := range params {
 		if !contains(operation.Parameters, param) {
 			operation.Parameters = append(operation.Parameters, param)
