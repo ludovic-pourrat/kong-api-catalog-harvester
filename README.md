@@ -30,7 +30,7 @@ See below end-to-end test execution
 
 ![alt text](./compose.gif "docker compose up")
 
-View captured AP£I specification change(s) with https://api-diff.io !
+View the harvested API specification and track change(s) with https://api-diff.io !
 
 ![alt text](./gih.gif "Compare the specifications")
 
