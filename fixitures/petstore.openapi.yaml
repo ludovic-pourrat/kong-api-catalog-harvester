@@ -40,7 +40,7 @@ paths:
         - pet
       summary: Add a new pet to the store
       description: Add a new pet to the store
-      operationId: addPet
+      operationId: post-pet
       requestBody:
         description: Create a new pet in the store
         content:
@@ -66,7 +66,7 @@ paths:
         - pet
       summary: Finds Pets by status
       description: Multiple status values can be provided with comma separated strings
-      operationId: findPetsByStatus
+      operationId: get-pet-findbystatus
       parameters:
         - name: status
           in: query
@@ -95,7 +95,7 @@ paths:
         - pet
       summary: Finds Pets by tags
       description: 'Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.'
-      operationId: findPetsByTags
+      operationId: get-pet-findbytags
       parameters:
         - name: tags
           in: query
@@ -123,7 +123,7 @@ paths:
         - pet
       summary: Find pet by ID
       description: Returns a single pet
-      operationId: getPetById
+      operationId: get-pet-by-x
       parameters:
         - name: id
           in: path
@@ -144,7 +144,7 @@ paths:
         - pet
       summary: Updates a pet in the store with form data
       description: ''
-      operationId: updatePetWithForm
+      operationId: post-pet-by-x
       parameters:
         - name: id
           in: path
@@ -176,7 +176,7 @@ paths:
         - pet
       summary: Deletes a pet
       description: ''
-      operationId: deletePet
+      operationId: delete-pet-by-x
       parameters:
         - name: id
           in: path
@@ -194,7 +194,7 @@ paths:
         - store
       summary: Returns pet inventories by status
       description: Returns a map of status codes to quantities
-      operationId: getInventory
+      operationId: get-store-inventory
       responses:
         '200':
           description: successful operation
@@ -211,7 +211,7 @@ paths:
         - store
       summary: Place an order for a pet
       description: Place a new order in the store
-      operationId: placeOrder
+      operationId: post-store-order
       requestBody:
         content:
           application/json:
@@ -234,7 +234,7 @@ paths:
         - store
       summary: Find purchase order by ID
       description: For valid response try integer IDs with value <= 5 or > 10. Other values will generate exceptions.
-      operationId: getOrderById
+      operationId: get-store-order-by-x
       parameters:
         - name: id
           in: path
@@ -255,7 +255,7 @@ paths:
         - store
       summary: Delete purchase order by ID
       description: For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors
-      operationId: deleteOrder
+      operationId: delete-store-order-by-x
       parameters:
         - name: id
           in: path
@@ -276,10 +276,6 @@ components:
           type: integer
           format: int64
           example: 10
-        id:
-          type: integer
-          format: int64
-          example: 198772
         quantity:
           type: integer
           format: int32

@@ -32,7 +32,7 @@ See below end-to-end test execution
 
 View the harvested API specification and track change(s) with https://api-diff.io !
 
-![alt text](./gih.gif "Compare the specifications")
+![alt text](./diff.gif "Compare the specifications")
 
 ## Goal
 
