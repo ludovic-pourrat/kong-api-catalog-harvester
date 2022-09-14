@@ -7,6 +7,7 @@ COPY go.sum ./
 RUN go mod download
 
 COPY utils/*.go ./utils/
+COPY utils/pathtrie/*.go ./utils/pathtrie/
 COPY types/*.go ./types/
 COPY factories/*.go ./factories/
 COPY *.go ./

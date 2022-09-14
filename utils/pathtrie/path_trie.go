@@ -3,6 +3,7 @@ package pathtrie
 // Inspired by https://github.com/akitasoftware/akita-libs/blob/main/path_trie/path_trie.go
 
 import (
+	"container/list"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"reflect"
 	"strings"
@@ -169,6 +170,29 @@ func (pt *PathTrie) getNode(path string) *TrieNode {
 
 	// if multiple nodes found, return the node with less path params segments
 	return getMostAccurateNode(nodes, path, len(segments))
+}
+
+// Nodes returns a list of all graph nodes
+func (pt *PathTrie) Nodes() []*TrieNode {
+	//track the visited nodes
+	var nodes []*TrieNode
+	// queue of the nodes to visit
+	queue := list.New()
+	// add the root node to the map of the visited nodes
+	root := pt.Trie[""]
+	nodes = append(nodes, root)
+	queue.PushBack(root)
+	for queue.Len() > 0 {
+		qnode := queue.Front()
+		// iterate through all of its friends
+		// mark the visited nodes; enqueue the non-visted
+		for _, node := range qnode.Value.(*TrieNode).Children {
+			nodes = append(nodes, node)
+			queue.PushBack(node)
+		}
+		queue.Remove(qnode)
+	}
+	return nodes
 }
 
 func (trie PathToTrieNode) getMatchNodes(segments []string, idx int) []*TrieNode {
