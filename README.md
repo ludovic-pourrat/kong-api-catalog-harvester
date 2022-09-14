@@ -14,6 +14,11 @@ Kong plugin to harvest your API catalog. Turn actual API traffic into valuable d
 
 ## Getting Started
 
+How this is working ?
+
+![alt text](./how-this-is-working.png "Description")
+
+
 Build the required images
 
 ``` bash
@@ -28,7 +33,7 @@ docker-compose up
 
 See below end-to-end test execution
 
-![alt text](./compose.gif "docker compose up")
+![alt text](./compose.gif "Up")
 
 View the harvested API specification and track change(s) with https://api-diff.io !
 
