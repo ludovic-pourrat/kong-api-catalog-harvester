@@ -1,6 +1,9 @@
 package factories
 
-import "github.com/getkin/kin-openapi/openapi3"
+import (
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils/pathtrie"
+)
 
 func BuildSpecification(name string, version string) *openapi3.T {
 
@@ -16,10 +19,7 @@ func BuildSpecification(name string, version string) *openapi3.T {
 	}
 }
 
-func CloneSpecification(specification *openapi3.T,
-	paths map[string]string,
-	methods map[string]string,
-	operations map[string]*openapi3.Operation) *openapi3.T {
+func CloneSpecification(specification *openapi3.T, paths pathtrie.PathTrie, methods map[string]string, operations map[string]*openapi3.Operation) *openapi3.T {
 
 	clone := BuildSpecification(specification.Info.Title, specification.OpenAPI)
 	UpdateSpecification(clone, paths, methods, operations)
@@ -27,15 +27,15 @@ func CloneSpecification(specification *openapi3.T,
 	return clone
 }
 
-func UpdateSpecification(specification *openapi3.T,
-	paths map[string]string,
-	methods map[string]string,
-	operations map[string]*openapi3.Operation) {
+func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie, methods map[string]string, operations map[string]*openapi3.Operation) {
 
-	for name, path := range paths {
-		operation := operations[name]
-		specification.AddOperation(path, methods[name], operation)
-		AddPath(specification.Paths, path, methods[name], operation)
-	}
+	//for name, path := range paths.Trie {
+	//	if name == "" {
+	//		continue
+	//	}
+	//	operation := operations[name]
+	//	specification.AddOperation(path.FullPath, methods[name], operation)
+	//	AddPath(specification.Paths, path.FullPath, methods[name], operation)
+	//}
 
 }

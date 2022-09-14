@@ -10,6 +10,7 @@ import (
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils/pathtrie"
 	"github.com/patrickmn/go-cache"
 	"net/url"
 	"time"
@@ -22,7 +23,7 @@ var responses = cache.New(5*time.Minute, 10*time.Minute)
 var specs = make(map[string]*openapi3.T)                         // FIXME add mutex
 var operations = make(map[string]map[string]*openapi3.Operation) // FIXME add mutex
 var methods = make(map[string]map[string]string)                 // FIXME add mutex
-var registeredPaths = make(map[string]map[string]string)         // FIXME add mutex
+var registeredPaths = pathtrie.New()                             // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -112,7 +113,6 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	if _, found := specs[log.Service.Name]; !found {
 		operations[log.Service.Name] = make(map[string]*openapi3.Operation)
 		methods[log.Service.Name] = make(map[string]string)
-		registeredPaths[log.Service.Name] = make(map[string]string)
 		var read *openapi3.T
 		read, err = utils.Read(log.Service.Name)
 		if err != nil {
@@ -127,7 +127,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	} else {
 		// aggregate
 		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
-			registeredPaths[log.Service.Name],
+			registeredPaths,
 			methods[log.Service.Name],
 			operations[log.Service.Name])
 
@@ -135,9 +135,9 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	var name string
 	// match
 	matched, route, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	// url
+	url := factories.CreateParameterizedPath(u.Path)
 	if !matched {
-		// url
-		url := factories.CreateParameterizedPath(u.Path)
 		// parameters
 		params := factories.BuildParams(url, u.Path, log, logger)
 		// request
@@ -153,7 +153,10 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 			Responses:   operationResponse,
 		}
 		operations[log.Service.Name][name] = operation
-		registeredPaths[log.Service.Name][name] = url
+		//if registeredPaths. {
+		//
+		//}
+		registeredPaths.Insert(url, 1)
 		methods[log.Service.Name][name] = log.Request.Method
 		updated = true
 	} else {
@@ -161,7 +164,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		// merge
 		name = utils.GetName(log.Request.Method, route)
 		loaded := operations[log.Service.Name][name]
-		updatedParams := factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger)
+		updatedParams := factories.MergeParams(loaded, url, u.Path, log, logger)
 		updatedRequest, err = factories.MergeRequest(loaded, *rawRequest, contentType, log)
 		if err != nil {
 			logger.Err(err)
@@ -178,7 +181,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	}
 	if updated {
 		factories.UpdateSpecification(specs[log.Service.Name],
-			registeredPaths[log.Service.Name],
+			registeredPaths,
 			methods[log.Service.Name],
 			operations[log.Service.Name])
 		err = utils.Write(log.Service.Name, specs[log.Service.Name])

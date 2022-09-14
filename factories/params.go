@@ -5,6 +5,7 @@ import (
 	"github.com/Kong/go-pdk/log"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"strings"
 )
 
@@ -30,7 +31,7 @@ func BuildParams(url string, path string, log types.Log, logger log.Log) []*open
 	values := strings.Split(path, "/")
 
 	for index, part := range parts {
-		if IsPathParam(part) {
+		if utils.IsPathParam(part) {
 			part = strings.TrimPrefix(part, "{")
 			part = strings.TrimSuffix(part, "}")
 			param := openapi3.ParameterRef{
@@ -63,9 +64,4 @@ func contains(s []*openapi3.ParameterRef, e *openapi3.ParameterRef) bool {
 		}
 	}
 	return false
-}
-
-func IsPathParam(segment string) bool {
-	return strings.HasPrefix(segment, "{") &&
-		strings.HasSuffix(segment, "}")
 }

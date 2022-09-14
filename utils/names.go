@@ -30,7 +30,7 @@ func IsPathParam(segment string) bool {
 const charset = "abcdefghijklmnopqrstuvwxyz"
 
 func GenerateParamName() string {
-	var seededRand = rand.New(
+	var seededRand *rand.Rand = rand.New(
 		rand.NewSource(time.Now().UnixNano()))
 
 	b := make([]byte, 8)

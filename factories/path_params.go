@@ -3,27 +3,13 @@ package factories
 import (
 	spec "github.com/getkin/kin-openapi/openapi3"
 	"github.com/google/uuid"
-	"math/rand"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"strings"
-	"time"
 	"unicode"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyz"
-
 type PathParam struct {
 	*spec.Parameter
-}
-
-func generateParamName(pathPart string) string {
-	var seededRand = rand.New(
-		rand.NewSource(time.Now().UnixNano()))
-
-	b := make([]byte, 8)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
 }
 
 func CreateParameterizedPath(path string) string {
@@ -33,8 +19,7 @@ func CreateParameterizedPath(path string) string {
 	for _, part := range pathParts {
 		// if part is a suspect param, replace it with a param name, otherwise do nothing
 		if isSuspectPathParam(part) {
-			paramName := generateParamName(part)
-			ParameterizedPathParts = append(ParameterizedPathParts, "{"+paramName+"}")
+			ParameterizedPathParts = append(ParameterizedPathParts, utils.GenerateParamName())
 		} else {
 			ParameterizedPathParts = append(ParameterizedPathParts, part)
 		}
