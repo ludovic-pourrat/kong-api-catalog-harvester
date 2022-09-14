@@ -21,7 +21,8 @@ var requests = cache.New(5*time.Minute, 10*time.Minute)
 var responses = cache.New(5*time.Minute, 10*time.Minute)
 var specs = make(map[string]*openapi3.T)                         // FIXME add mutex
 var operations = make(map[string]map[string]*openapi3.Operation) // FIXME add mutex
-var registeredPaths = make(map[string]map[string]string)
+var methods = make(map[string]map[string]string)                 // FIXME add mutex
+var registeredPaths = make(map[string]map[string]string)         // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -109,13 +110,17 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	// search specification
 	if _, found := specs[log.Service.Name]; !found {
 		operations[log.Service.Name] = make(map[string]*openapi3.Operation)
+		methods[log.Service.Name] = make(map[string]string)
 		registeredPaths[log.Service.Name] = make(map[string]string)
 		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	}
-
-	logger.Warn("Operation match - ", " url : ", u.Path, " method :", log.Request.Method, " content-type - ", contentType)
+	// aggregate
+	lookup := factories.AggregateSpecification(specs[log.Service.Name],
+		registeredPaths[log.Service.Name],
+		methods[log.Service.Name],
+		operations[log.Service.Name])
 	// match
-	matched, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	matched, _ := match(log.Request.Method, u.Path, contentType, lookup)
 	// url
 	url := factories.CreateParameterizedPath(u.Path)
 	var name string
@@ -134,14 +139,12 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 			RequestBody: operationRequest,
 			Responses:   operationResponse,
 		}
-		specs[log.Service.Name].AddOperation(url, log.Request.Method, operation)
-		factories.AddPath(specs[log.Service.Name].Paths, url, log.Request.Method, operation)
 		operations[log.Service.Name][name] = operation
 		registeredPaths[log.Service.Name][name] = url
+		methods[log.Service.Name][name] = log.Request.Method
 		updated = true
 	} else {
 		// merge
-		logger.Warn("Operation matched - ", "url : ", url, " method : ", log.Request.Method, " content-type : ", contentType)
 		name = utils.GetName(log.Request.Method, url)
 		loaded := operations[log.Service.Name][name]
 		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger) ||
@@ -151,7 +154,11 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		}
 	}
 	if updated {
-		err = utils.Write(log.Service.Name, specs[log.Service.Name])
+		specification := factories.AggregateSpecification(specs[log.Service.Name],
+			registeredPaths[log.Service.Name],
+			methods[log.Service.Name],
+			operations[log.Service.Name])
+		err = utils.Write(log.Service.Name, specification)
 		if err != nil {
 			logger.Err(err)
 			return

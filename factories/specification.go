@@ -16,3 +16,19 @@ func BuildSpecification(name string, version string) *openapi3.T {
 		Paths:   openapi3.Paths{},
 	}
 }
+
+func AggregateSpecification(specification *openapi3.T,
+	paths map[string]string,
+	methods map[string]string,
+	operations map[string]*openapi3.Operation) *openapi3.T {
+
+	clone := openapi3.T{}
+	clone = *specification
+	for name, path := range paths {
+		operation := operations[name]
+		clone.AddOperation(path, methods[name], operation)
+		AddPath(clone.Paths, path, methods[name], operation)
+	}
+
+	return &clone
+}
