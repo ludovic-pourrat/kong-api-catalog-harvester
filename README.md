@@ -26,12 +26,12 @@ The end to end testing works as follow
 
 ![alt text](./how-this-is-working.png "Description")
 
-References
+### References
 
-https://www.postman.com
-https://konghq.com
-https://learning.postman.com/docs/running-collections/using-newman-cli/command-line-integration-with-newman/
-https://stoplight.io/open-source/prism
+- https://www.postman.com
+- https://konghq.com
+- https://learning.postman.com/docs/running-collections/using-newman-cli/command-line-integration-with-newman/
+- https://stoplight.io/open-source/prism
 
 Build the required images
 
