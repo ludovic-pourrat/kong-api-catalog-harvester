@@ -16,15 +16,6 @@ type PathParam struct {
 }
 
 func generateParamName(pathPart string) string {
-	if isNumber(pathPart) {
-		return "id"
-	}
-	if isUUID(pathPart) {
-		return "uuid"
-	}
-	if isToken(pathPart) {
-		return "token"
-	}
 	var seededRand *rand.Rand = rand.New(
 		rand.NewSource(time.Now().UnixNano()))
 
