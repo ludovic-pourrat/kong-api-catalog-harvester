@@ -16,8 +16,22 @@ Kong plugin to harvest your API catalog. Turn actual API traffic into valuable d
 
 How this is working ?
 
+The end to end testing works as follow 
+
+- From a sample specification (aka the Swagger Pet Store) we generate a collection with Postman 
+- A Newman runtime will be used to execute the collection
+- From a sample specification (aka the Swagger Pet Store) we generate a mock with Prism
+- Kong will route the newman API request to the Stoplight Prism mock
+- This plugin will harvest a specification based on the captured API traffic
+
 ![alt text](./how-this-is-working.png "Description")
 
+References
+
+https://www.postman.com
+https://konghq.com
+https://learning.postman.com/docs/running-collections/using-newman-cli/command-line-integration-with-newman/
+https://stoplight.io/open-source/prism
 
 Build the required images
 
