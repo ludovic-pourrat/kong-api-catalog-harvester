@@ -131,7 +131,11 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		methods[log.Service.Name],
 		operations[log.Service.Name])
 	// match
-	matched, route, _ := match(log.Request.Method, u.Path, contentType, lookup)
+	matched, route, failure := match(log.Request.Method, u.Path, contentType, lookup)
+	if failure != nil {
+		logger.Err("Error", "err", failure)
+	}
+	logger.Err("Match", " match - ", matched, " route ", route, " url ", u.Path)
 	var name string
 	if !matched {
 		// url

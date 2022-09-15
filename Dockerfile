@@ -13,7 +13,7 @@ COPY *.go ./
 
 RUN CGO_ENABLED=0 go build -o /api-catalog-harvester
 
-FROM kong/kong-gateway:2.8-alpine
+FROM kong:2.8
 
 USER root
 COPY --from=build /api-catalog-harvester /usr/local/bin/
