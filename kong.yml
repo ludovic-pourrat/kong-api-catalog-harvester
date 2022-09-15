@@ -2,14 +2,6 @@ _format_version: "2.1"
 _transform: true
 
 services:
-  - name: echo
-    url: http://mockbin:8080/echo
-    protocol: http
-    routes:
-      - name: echo
-        paths:
-          - /echo
-
   - name: openapi
     url: http://prism:4010/
     protocol: http
@@ -25,12 +17,6 @@ plugins:
       header_name: Kong-Request-ID
       generator: uuid
       echo_downstream: false
-
-  - name: api-catalog-harvester
-    enabled: true
-    service: echo
-    config:
-      active: true
 
   - name: api-catalog-harvester
     enabled: true
