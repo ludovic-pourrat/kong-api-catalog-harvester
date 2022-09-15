@@ -45,6 +45,18 @@ Run the stack
 docker-compose up
 ```
 
+Debug the stack
+
+``` bash
+docker-compose  -f docker-compose.yml -f docker-compose-debug.yml build
+```
+
+``` bash
+docker-compose  -f docker-compose.yml -f docker-compose-debug.yml up
+```
+
+Then attach your remote Go debugger to localhost:40000 !
+
 See below end-to-end test execution
 
 ![alt text](./compose.gif "Up")
