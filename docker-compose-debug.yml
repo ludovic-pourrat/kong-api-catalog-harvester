@@ -1,16 +1,10 @@
 version: "3"
 services:
 
-  prism:
-    build: ./mocks/prism
-    command: prism mock -h 0.0.0.0 -d /workspace/petstore.openapi.yaml
-    ports:
-      - "4010:4010"
-    volumes:
-      - ${PWD}/fixitures/petstore.openapi.yaml:/workspace/petstore.openapi.yaml
-
   kong:
-    build: .
+    build:
+      context: .
+      dockerfile: ./debug/Dockerfile
     environment:
       - KONG_DATABASE=off
       - KONG_DECLARATIVE_CONFIG=/etc/kong/kong.yml
@@ -22,23 +16,16 @@ services:
       - KONG_PROXY_LISTEN=0.0.0.0:8000
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
       - KONG_PLUGINS=bundled,api-catalog-harvester
+      - KONG_PLUGINSERVER_API_CATALOG_HARVESTER_START_CMD=/entrypoint.sh
       - KONG_PLUGINSERVER_API_CATALOG_HARVESTER_QUERY_CMD=/usr/local/bin/api-catalog-harvester -dump
       - KONG_PLUGINSERVER_NAMES=api-catalog-harvester
     ports:
       - "8000:8000"
       - "8001:8001"
       - "8006:8006"
+      - "40000:40000"
     volumes:
       - ${PWD}/kong.yml:/etc/kong/kong.yml
       - ${PWD}/logs:/logs
       - ${PWD}/repository:/repository
       - ${PWD}/snapshots:/snapshots
-
-  newman:
-    build: ./tools/newman
-    command: newman run petstore.openapi.postman-collection.json -n 2
-    depends_on:
-      - kong
-      - prism
-    volumes:
-      - ${PWD}/fixitures/collections:/etc/newman

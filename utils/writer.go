@@ -60,13 +60,13 @@ func Read(name string) (*openapi3.T, error) {
 		if err != nil {
 			return nil, err
 		}
-		var specification openapi3.T
+		var specification *openapi3.T
 		// marshal to yaml
 		err = yaml.Unmarshal(data, specification)
 		if err != nil {
 			return nil, err
 		}
-		return &specification, nil
+		return specification, nil
 	}
 	return nil, nil
 }

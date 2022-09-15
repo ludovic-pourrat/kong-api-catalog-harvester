@@ -125,18 +125,14 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 			specs[log.Service.Name] = read
 		}
 	}
+	var name string
 	// aggregate
 	lookup := factories.AggregateSpecification(specs[log.Service.Name],
 		registeredPaths[log.Service.Name],
 		methods[log.Service.Name],
 		operations[log.Service.Name])
 	// match
-	matched, route, failure := match(log.Request.Method, u.Path, contentType, lookup)
-	if failure != nil {
-		logger.Err("Error", "err", failure)
-	}
-	logger.Err("Match", " match - ", matched, " route ", route, " url ", u.Path)
-	var name string
+	matched, route, _ := match(log.Request.Method, u.Path, contentType, lookup)
 	if !matched {
 		// url
 		url := factories.CreateParameterizedPath(u.Path)

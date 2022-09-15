@@ -22,13 +22,12 @@ func AggregateSpecification(specification *openapi3.T,
 	methods map[string]string,
 	operations map[string]*openapi3.Operation) *openapi3.T {
 
-	clone := openapi3.T{}
-	clone = *specification
+	clone := BuildSpecification(specification.Info.Title, specification.OpenAPI)
 	for name, path := range paths {
 		operation := operations[name]
 		clone.AddOperation(path, methods[name], operation)
 		AddPath(clone.Paths, path, methods[name], operation)
 	}
 
-	return &clone
+	return clone
 }
