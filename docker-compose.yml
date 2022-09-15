@@ -39,6 +39,8 @@ services:
     volumes:
       - ${PWD}/kong.yml:/etc/kong/kong.yml
       - ${PWD}/logs:/logs
+      - ${PWD}/repository:/repository
+      - ${PWD}/snapshots:/snapshots
 
   newman:
     build: ./tools/newman

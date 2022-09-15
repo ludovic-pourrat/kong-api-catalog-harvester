@@ -6,25 +6,25 @@ import (
 	"net/http"
 )
 
-func match(method string, path string, contentType string, specification *openapi3.T) (bool, error) {
+func match(method string, path string, contentType string, specification *openapi3.T) (bool, string, error) {
 	router, err := gorillamux.NewRouter(specification)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	search, err := http.NewRequest(method, path, http.NoBody)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	if len(contentType) > 0 {
 		search.Header.Set("Content-Type", contentType)
 	}
 	route, _, err := router.FindRoute(search)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	if route == nil {
-		return false, nil
+		return false, "", nil
 	} else {
-		return true, nil
+		return true, route.Path, nil
 	}
 }

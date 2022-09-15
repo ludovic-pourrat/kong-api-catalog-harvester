@@ -22,3 +22,5 @@
 # Logs
 
 logs/
+repository/
+snapshots/

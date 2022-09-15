@@ -29,6 +29,7 @@ type Config struct {
 }
 
 func New() interface{} {
+	utils.Init()
 	return &Config{}
 }
 
@@ -112,7 +113,17 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		operations[log.Service.Name] = make(map[string]*openapi3.Operation)
 		methods[log.Service.Name] = make(map[string]string)
 		registeredPaths[log.Service.Name] = make(map[string]string)
-		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
+		var read *openapi3.T
+		read, err = utils.Read(log.Service.Name)
+		if err != nil {
+			logger.Err(err)
+			return
+		}
+		if read == nil {
+			specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
+		} else {
+			specs[log.Service.Name] = read
+		}
 	}
 	// aggregate
 	lookup := factories.AggregateSpecification(specs[log.Service.Name],
@@ -120,11 +131,11 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		methods[log.Service.Name],
 		operations[log.Service.Name])
 	// match
-	matched, _ := match(log.Request.Method, u.Path, contentType, lookup)
-	// url
-	url := factories.CreateParameterizedPath(u.Path)
+	matched, route, _ := match(log.Request.Method, u.Path, contentType, lookup)
 	var name string
 	if !matched {
+		// url
+		url := factories.CreateParameterizedPath(u.Path)
 		// parameters
 		params := factories.BuildParams(url, u.Path, log, logger)
 		// request
@@ -145,7 +156,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		updated = true
 	} else {
 		// merge
-		name = utils.GetName(log.Request.Method, url)
+		name = utils.GetName(log.Request.Method, route)
 		loaded := operations[log.Service.Name][name]
 		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger) ||
 			factories.MergeRequest(loaded, *rawRequest, contentType, log) ||
