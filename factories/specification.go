@@ -31,3 +31,16 @@ func AggregateSpecification(specification *openapi3.T,
 
 	return clone
 }
+
+func UpdateSpecification(specification *openapi3.T,
+	paths map[string]string,
+	methods map[string]string,
+	operations map[string]*openapi3.Operation) {
+
+	for name, path := range paths {
+		operation := operations[name]
+		specification.AddOperation(path, methods[name], operation)
+		AddPath(specification.Paths, path, methods[name], operation)
+	}
+
+}

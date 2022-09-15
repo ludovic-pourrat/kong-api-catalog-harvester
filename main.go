@@ -155,6 +155,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		methods[log.Service.Name][name] = log.Request.Method
 		updated = true
 	} else {
+		specs[log.Service.Name] = lookup
 		// merge
 		name = utils.GetName(log.Request.Method, route)
 		loaded := operations[log.Service.Name][name]
@@ -165,11 +166,11 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		}
 	}
 	if updated {
-		specification := factories.AggregateSpecification(specs[log.Service.Name],
+		factories.UpdateSpecification(specs[log.Service.Name],
 			registeredPaths[log.Service.Name],
 			methods[log.Service.Name],
 			operations[log.Service.Name])
-		err = utils.Write(log.Service.Name, specification)
+		err = utils.Write(log.Service.Name, specs[log.Service.Name])
 		if err != nil {
 			logger.Err(err)
 			return

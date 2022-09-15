@@ -79,9 +79,9 @@ func isUUID(pathPart string) bool {
 }
 
 func isToken(pathPart string) bool {
-	const maxLen = 256
+	const maxLen = 32
 	const minDigitsLen = 1
-	if len(pathPart) < maxLen {
+	if len(pathPart) <= maxLen {
 		return false
 	}
 	return countDigitsAndLetterInString(pathPart) > minDigitsLen
