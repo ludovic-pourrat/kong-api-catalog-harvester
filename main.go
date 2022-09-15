@@ -137,7 +137,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		// url
 		url := factories.CreateParameterizedPath(u.Path)
 		// parameters
-		params := factories.BuildParams(url, url, log, logger)
+		params := factories.BuildParams(url, u.Path, log, logger)
 		// request
 		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
 		// response
@@ -159,7 +159,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		// merge
 		name = utils.GetName(log.Request.Method, route)
 		loaded := operations[log.Service.Name][name]
-		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], route, log, logger) ||
+		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger) ||
 			factories.MergeRequest(loaded, *rawRequest, contentType, log) ||
 			factories.MergeResponses(loaded, *rawResponse, log) {
 			updated = true
