@@ -423,6 +423,9 @@ components:
           type: integer
           format: int64
           example: 10
+        age:
+          type: integer
+          format: int64
         name:
           type: string
           example: doggie

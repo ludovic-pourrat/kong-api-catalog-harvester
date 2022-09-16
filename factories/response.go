@@ -37,7 +37,7 @@ func BuildResponses(raw string, log types.Log) openapi3.Responses {
 	return responses
 }
 
-func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef) bool {
+func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef) (bool, error) {
 	var contentType string
 	var updated = false
 	response := responseRef.Value
@@ -48,22 +48,29 @@ func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef)
 			contentType = "application/json"
 		}
 		respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
-		responseSchema, _ := BuildSchema(respBodyJSON)
 		responseContent := response.Content.Get(contentType)
-		responseContent.Schema.Value = responseSchema
+		schema, err := MergeSchema(respBodyJSON, responseContent.Schema.Value)
+		if err != nil {
+			return false, err
+		}
+		responseContent.Schema.Value = schema
 		updated = true
 	}
-	return updated
+	return updated, nil
 }
 
-func MergeResponses(operation *openapi3.Operation, raw string, log types.Log) bool {
+func MergeResponses(operation *openapi3.Operation, raw string, log types.Log) (bool, error) {
 	var updated = false
+	var err error
 	responses := operation.Responses
 	if responses[strconv.Itoa(log.Response.Status)] == nil {
 		responses[strconv.Itoa(log.Response.Status)] = BuildResponse(raw, log)
 		updated = true
 	} else {
-		updated = MergeResponse(raw, log, responses[strconv.Itoa(log.Response.Status)])
+		updated, err = MergeResponse(raw, log, responses[strconv.Itoa(log.Response.Status)])
+		if err != nil {
+			return updated, err
+		}
 	}
-	return updated
+	return updated, nil
 }

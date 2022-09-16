@@ -4,12 +4,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/imdario/mergo"
 	"github.com/spf13/cast"
 	"github.com/xeipuuv/gojsonschema"
 	"strings"
 )
 
-func BuildSchema(value interface{}) (schema *openapi3.Schema, err error) {
+func MergeSchema(value interface{}, schema *openapi3.Schema) (*openapi3.Schema, error) {
+	merged, err := BuildSchema(value)
+	if err != nil {
+		return nil, err
+	}
+	err = mergo.Merge(schema, merged)
+	if err != nil {
+		return nil, err
+	}
+	return merged, nil
+}
+
+func BuildSchema(value interface{}) (*openapi3.Schema, error) {
+	var schema *openapi3.Schema
+	var err error
+
 	switch value.(type) {
 	case bool:
 		schema = openapi3.NewBoolSchema()

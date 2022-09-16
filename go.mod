@@ -8,6 +8,7 @@ require (
 	github.com/Kong/go-pdk v0.8.0
 	github.com/getkin/kin-openapi v0.100.0
 	github.com/google/uuid v1.3.0
+	github.com/imdario/mergo v0.3.13
 	github.com/invopop/yaml v0.1.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/spf13/cast v1.5.0

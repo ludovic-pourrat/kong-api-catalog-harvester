@@ -155,13 +155,23 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		methods[log.Service.Name][name] = log.Request.Method
 		updated = true
 	} else {
+		var updatedRequest, updatedResponses bool
 		specs[log.Service.Name] = lookup
 		// merge
 		name = utils.GetName(log.Request.Method, route)
 		loaded := operations[log.Service.Name][name]
-		if factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger) ||
-			factories.MergeRequest(loaded, *rawRequest, contentType, log) ||
-			factories.MergeResponses(loaded, *rawResponse, log) {
+		updatedParams := factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger)
+		updatedRequest, err = factories.MergeRequest(loaded, *rawRequest, contentType, log)
+		if err != nil {
+			logger.Err(err)
+			return
+		}
+		updatedResponses, err = factories.MergeResponses(loaded, *rawResponse, log)
+		if err != nil {
+			logger.Err(err)
+			return
+		}
+		if updatedParams || updatedRequest || updatedResponses {
 			updated = true
 		}
 	}

@@ -26,14 +26,20 @@ func BuildRequest(raw []byte, contentType string, log types.Log) *openapi3.Reque
 	return requestBodyRef
 }
 
-func MergeRequest(operation *openapi3.Operation, raw []byte, contentType string, log types.Log) bool {
+func MergeRequest(operation *openapi3.Operation, raw []byte, contentType string, log types.Log) (bool, error) {
 	if log.Request.Method != "GET" && log.Request.Method != "DELETE" {
 		request := operation.RequestBody.Value
 		reqBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
-		requestSchema, _ := BuildSchema(reqBodyJSON)
 		requestContent := request.Content.Get(contentType)
-		requestContent.Schema.Value = requestSchema
-		return true
+		schema, err := MergeSchema(reqBodyJSON, requestContent.Schema.Value)
+		if err != nil {
+			return false, err
+		}
+		requestContent.Schema.Value = schema
+		if err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return false
+	return false, nil
 }
