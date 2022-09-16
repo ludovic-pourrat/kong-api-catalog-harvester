@@ -124,15 +124,17 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		} else {
 			specs[log.Service.Name] = read
 		}
+	} else {
+		// aggregate
+		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
+			registeredPaths[log.Service.Name],
+			methods[log.Service.Name],
+			operations[log.Service.Name])
+
 	}
 	var name string
-	// aggregate
-	lookup := factories.CloneSpecification(specs[log.Service.Name],
-		registeredPaths[log.Service.Name],
-		methods[log.Service.Name],
-		operations[log.Service.Name])
 	// match
-	matched, route, _ := match(log.Request.Method, u.Path, contentType, lookup)
+	matched, route, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
 	if !matched {
 		// url
 		url := factories.CreateParameterizedPath(u.Path)
@@ -156,7 +158,6 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		updated = true
 	} else {
 		var updatedRequest, updatedResponses bool
-		specs[log.Service.Name] = lookup
 		// merge
 		name = utils.GetName(log.Request.Method, route)
 		loaded := operations[log.Service.Name][name]
