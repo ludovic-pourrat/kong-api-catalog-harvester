@@ -4,14 +4,30 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/xeipuuv/gojsonschema"
+	"mime"
 )
 
 func BuildRequest(raw []byte, contentType string, log types.Log) *openapi3.RequestBodyRef {
 	var requestBodyRef *openapi3.RequestBodyRef
 	if log.Request.Method != "GET" && log.Request.Method != "DELETE" {
 		request := openapi3.NewRequestBody()
-		reqBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
-		requestSchema, _ := BuildSchema(reqBodyJSON)
+		var requestSchema *openapi3.Schema
+		mediaType, mediaTypeParams, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			requestSchema = openapi3.NewStringSchema()
+		} else {
+			switch true {
+			case IsApplicationJSONMediaType(mediaType):
+				respBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
+				requestSchema, _ = BuildSchema(respBodyJSON)
+			case mediaType == "application/x-www-form-urlencoded":
+				requestSchema, _ = BuildForm(string(raw))
+			case mediaType == "multipart/form-data":
+				requestSchema, _ = BuildMultiPart(string(raw), mediaTypeParams)
+			default:
+				requestSchema = openapi3.NewStringSchema()
+			}
+		}
 		requestContent := openapi3.Content{
 			contentType: openapi3.NewMediaType().WithSchema(requestSchema),
 		}

@@ -4,6 +4,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/xeipuuv/gojsonschema"
+	"mime"
 	"net/http"
 	"strconv"
 )
@@ -17,8 +18,23 @@ func BuildResponse(raw string, log types.Log) *openapi3.ResponseRef {
 		} else {
 			contentType = "application/json"
 		}
-		respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
-		responseSchema, _ := BuildSchema(respBodyJSON)
+		var responseSchema *openapi3.Schema
+		mediaType, mediaTypeParams, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			responseSchema = openapi3.NewStringSchema()
+		} else {
+			switch true {
+			case IsApplicationJSONMediaType(mediaType):
+				respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
+				responseSchema, _ = BuildSchema(respBodyJSON)
+			case mediaType == "application/x-www-form-urlencoded":
+				responseSchema, _ = BuildForm(raw)
+			case mediaType == "multipart/form-data":
+				responseSchema, _ = BuildMultiPart(raw, mediaTypeParams)
+			default:
+				responseSchema = openapi3.NewStringSchema()
+			}
+		}
 		responseContent := openapi3.Content{
 			contentType: openapi3.NewMediaType().WithSchema(responseSchema),
 		}
