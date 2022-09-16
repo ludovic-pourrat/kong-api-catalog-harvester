@@ -25,22 +25,17 @@ func BuildMultiPart(body string, mediaTypeParams map[string]string) (*openapi3.S
 
 	schema := openapi3.NewObjectSchema()
 
-	// https://swagger.io/docs/specification/describing-request-body/file-upload/
 	for key, fileHeaders := range form.File {
 		fileSchema := openapi3.NewStringSchema().WithFormat("binary")
 		switch len(fileHeaders) {
 		case 0:
-			// do nothing
 		case 1:
-			// single file
 			schema.WithProperty(key, fileSchema)
 		default:
-			// array of files
 			schema.WithProperty(key, openapi3.NewArraySchema().WithItems(fileSchema))
 		}
 	}
 
-	// add values formData
 	for key, values := range form.Value {
 		schema.WithProperty(key, getSchemaFromValues(values, false, ""))
 	}
@@ -99,16 +94,9 @@ func BuildSchema(value interface{}) (*openapi3.Schema, error) {
 			return nil, err
 		}
 	case nil:
-		// TODO: Not sure how to handle null. ex: {"size":3,"err":null}
 		schema = openapi3.NewStringSchema()
 	default:
-		// TODO:
-		// I've tested additionalProperties and it seems like properties - we will might have problems in the diff logic
-		// openapi3.MapProperty()
-		// openapi3.RefProperty()
-		// openapi3.RefSchema()
-		// openapi3.ComposedSchema() - discriminator?
-		return nil, fmt.Errorf("unexpected value type. value=%v, type=%T", value, value)
+		schema = openapi3.NewStringSchema()
 	}
 	return schema, nil
 }
@@ -118,33 +106,23 @@ func getStringSchema(value interface{}) (schema *openapi3.Schema) {
 }
 
 func getNumberSchema(value interface{}) (schema *openapi3.Schema) {
-	// https://swagger.io/docs/specification/data-models/data-types/#numbers
-	// It is important to try first convert it to int
 	if _, err := value.(json.Number).Int64(); err != nil {
-		// if failed to convert to int it's a double
-		// TODO: we will set a 'double' and not a 'float' - is that ok?
 		schema = openapi3.NewFloat64Schema()
 	} else {
 		schema = openapi3.NewInt64Schema()
 	}
-	// TODO: Format
-	// openapi3.Int8Property()
-	// openapi3.Int16Property()
-	// openapi3.Int32Property()
-	// openapi3.Float64Property()
-	// openapi3.Float32Property()
-	return schema /*.WithExample(value)*/
+	return schema
 }
 
-func getObjectSchema(value interface{}) (schema *openapi3.Schema, err error) {
-	schema = openapi3.NewObjectSchema()
+func getObjectSchema(value interface{}) (*openapi3.Schema, error) {
+	schema := openapi3.NewObjectSchema()
 	stringMapE, err := cast.ToStringMapE(value)
 	if err != nil {
-		return nil, fmt.Errorf("failed to cast to string map. value=%v: %w", value, err)
+		return nil, err
 	}
 	for key, val := range stringMapE {
 		if s, err := BuildSchema(val); err != nil {
-			return nil, fmt.Errorf("failed to get schema from string map. key=%v, value=%v: %w", key, val, err)
+			return nil, err
 		} else {
 			schema = schema.WithProperty(escapeString(key), s)
 		}
@@ -153,24 +131,23 @@ func getObjectSchema(value interface{}) (schema *openapi3.Schema, err error) {
 }
 
 func escapeString(key string) string {
-	// need to escape double quotes if exists
 	if strings.Contains(key, "\"") {
 		key = strings.ReplaceAll(key, "\"", "\\\"")
 	}
 	return key
 }
 
-func getArraySchema(value interface{}) (schema *openapi3.Schema, err error) {
+func getArraySchema(value interface{}) (*openapi3.Schema, error) {
+	var schema *openapi3.Schema
 	sliceE, err := cast.ToSliceE(value)
 	if err != nil {
-		return nil, fmt.Errorf("failed to cast to slice. value=%v: %w", value, err)
+		return nil, err
 	}
-	// in order to support mixed type array we will map all schemas by schema type
 	schemaTypeToSchema := make(map[string]*openapi3.Schema)
 	for i := range sliceE {
 		item, err := BuildSchema(sliceE[i])
 		if err != nil {
-			return nil, fmt.Errorf("failed to get items schema from slice. value=%v: %w", sliceE[i], err)
+			return nil, err
 		}
 		if _, ok := schemaTypeToSchema[item.Type]; !ok {
 			schemaTypeToSchema[item.Type] = item
@@ -178,8 +155,6 @@ func getArraySchema(value interface{}) (schema *openapi3.Schema, err error) {
 	}
 	switch len(schemaTypeToSchema) {
 	case 0:
-		// array is empty, but we can't create an empty array property (Schemas with 'type: array', require a sibling 'items:' field)
-		// we will create string type items as a default value
 		schema = openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())
 	case 1:
 		for _, s := range schemaTypeToSchema {
@@ -187,8 +162,6 @@ func getArraySchema(value interface{}) (schema *openapi3.Schema, err error) {
 			break
 		}
 	default:
-		// oneOf
-		// https://swagger.io/docs/specification/data-models/oneof-anyof-allof-not/
 		var schemas []*openapi3.Schema
 		for _, s := range schemaTypeToSchema {
 			schemas = append(schemas, s)
@@ -207,12 +180,6 @@ var formats = []string{
 	"ipv6",
 	"uuid",
 	"json-pointer",
-	// "relative-json-pointer", // matched with "1.147.1"
-	// "hostname",
-	// "regex",
-	// "uri",           // can be also iri
-	// "uri-reference", // can be also iri-reference
-	// "uri-template",
 }
 
 func getStringFormat(value interface{}) string {

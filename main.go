@@ -127,7 +127,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	}
 	var name string
 	// aggregate
-	lookup := factories.AggregateSpecification(specs[log.Service.Name],
+	lookup := factories.CloneSpecification(specs[log.Service.Name],
 		registeredPaths[log.Service.Name],
 		methods[log.Service.Name],
 		operations[log.Service.Name])

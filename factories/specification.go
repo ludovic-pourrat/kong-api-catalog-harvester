@@ -9,7 +9,6 @@ func BuildSpecification(name string, version string) *openapi3.T {
 		Version:     "0.0.0-snapshot",
 		Description: "API harvested from live traffic",
 	}
-
 	return &openapi3.T{
 		OpenAPI: version,
 		Info:    info,
@@ -17,17 +16,13 @@ func BuildSpecification(name string, version string) *openapi3.T {
 	}
 }
 
-func AggregateSpecification(specification *openapi3.T,
+func CloneSpecification(specification *openapi3.T,
 	paths map[string]string,
 	methods map[string]string,
 	operations map[string]*openapi3.Operation) *openapi3.T {
 
 	clone := BuildSpecification(specification.Info.Title, specification.OpenAPI)
-	for name, path := range paths {
-		operation := operations[name]
-		clone.AddOperation(path, methods[name], operation)
-		AddPath(clone.Paths, path, methods[name], operation)
-	}
+	UpdateSpecification(clone, paths, methods, operations)
 
 	return clone
 }
