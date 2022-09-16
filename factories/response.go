@@ -37,7 +37,33 @@ func BuildResponses(raw string, log types.Log) openapi3.Responses {
 	return responses
 }
 
+func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef) bool {
+	var contentType string
+	var updated = false
+	response := responseRef.Value
+	if log.Response.Status != 204 {
+		if _, found := log.Response.Headers["content-type"]; found {
+			contentType = log.Response.Headers["content-type"].(string)
+		} else {
+			contentType = "application/json"
+		}
+		respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
+		responseSchema, _ := BuildSchema(respBodyJSON)
+		responseContent := response.Content.Get(contentType)
+		responseContent.Schema.Value = responseSchema
+		updated = true
+	}
+	return updated
+}
+
 func MergeResponses(operation *openapi3.Operation, raw string, log types.Log) bool {
-	operation.Responses[strconv.Itoa(log.Response.Status)] = BuildResponse(raw, log)
-	return true
+	var updated = false
+	responses := operation.Responses
+	if responses[strconv.Itoa(log.Response.Status)] == nil {
+		responses[strconv.Itoa(log.Response.Status)] = BuildResponse(raw, log)
+		updated = true
+	} else {
+		updated = MergeResponse(raw, log, responses[strconv.Itoa(log.Response.Status)])
+	}
+	return updated
 }

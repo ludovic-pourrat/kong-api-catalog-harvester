@@ -11,7 +11,7 @@
 			"name": "pet",
 			"item": [
 				{
-					"name": "{Id}",
+					"name": "{id}",
 					"item": [
 						{
 							"name": "Find pet by id",
@@ -35,7 +35,7 @@
 									"variable": [
 										{
 											"key": "id",
-											"value": null
+											"value": "{{$randomInt}}"
 										}
 									]
 								},
@@ -88,7 +88,7 @@
 									"variable": [
 										{
 											"key": "id",
-											"value": null
+											"value": "{{$randomInt}}"
 										}
 									]
 								}
@@ -112,7 +112,7 @@
 									"variable": [
 										{
 											"key": "id",
-											"value": null
+											"value": "{{$randomInt}}"
 										}
 									]
 								}
@@ -322,7 +322,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"id\": {{$randdomInt}},\n  \"petId\": {{$randdomInt}},\n  \"quantity\": 1\n}",
+									"raw": "{\n  \"id\": {{$randdomInt}},\n  \"id\": {{$randdomInt}},\n  \"quantity\": 1\n}",
 									"options": {
 										"raw": {
 											"language": "json"

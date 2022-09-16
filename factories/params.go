@@ -69,9 +69,3 @@ func IsPathParam(segment string) bool {
 	return strings.HasPrefix(segment, "{") &&
 		strings.HasSuffix(segment, "}")
 }
-
-func GetPathParam(segment string) string {
-	segment = strings.TrimPrefix(segment, "{")
-	segment = strings.TrimSuffix(segment, "}")
-	return segment
-}
