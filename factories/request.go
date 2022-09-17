@@ -44,18 +44,58 @@ func BuildRequest(raw []byte, contentType string, log types.Log) *openapi3.Reque
 
 func MergeRequest(operation *openapi3.Operation, raw []byte, contentType string, log types.Log) (bool, error) {
 	if log.Request.Method != "GET" && log.Request.Method != "DELETE" {
+		var schema *openapi3.Schema
 		request := operation.RequestBody.Value
-		reqBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
 		requestContent := request.Content.Get(contentType)
-		schema, err := MergeSchema(reqBodyJSON, requestContent.Schema.Value)
+		mediaType, mediaTypeParams, err := mime.ParseMediaType(contentType)
 		if err != nil {
-			return false, err
+			schema = openapi3.NewStringSchema()
+			if err != nil {
+				return false, err
+			}
+			err = MergeSchemas(requestContent.Schema.Value, schema)
+			if err != nil {
+				return false, err
+			}
+		} else {
+			switch true {
+			case IsApplicationJSONMediaType(mediaType):
+				reqBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
+				schema, err = MergeSchema(reqBodyJSON, requestContent.Schema.Value)
+				if err != nil {
+					return false, err
+				}
+				requestContent.Schema.Value = schema
+				return true, nil
+			case mediaType == "application/x-www-form-urlencoded":
+				schema, err = BuildForm(string(raw))
+				if err != nil {
+					return false, err
+				}
+				err = MergeSchemas(requestContent.Schema.Value, schema)
+				if err != nil {
+					return false, err
+				}
+			case mediaType == "multipart/form-data":
+				schema, err = BuildMultiPart(string(raw), mediaTypeParams)
+				if err != nil {
+					return false, err
+				}
+				err = MergeSchemas(requestContent.Schema.Value, schema)
+				if err != nil {
+					return false, err
+				}
+			default:
+				schema = openapi3.NewStringSchema()
+				if err != nil {
+					return false, err
+				}
+				err = MergeSchemas(requestContent.Schema.Value, schema)
+				if err != nil {
+					return false, err
+				}
+			}
 		}
-		requestContent.Schema.Value = schema
-		if err != nil {
-			return false, err
-		}
-		return true, nil
 	}
 	return false, nil
 }

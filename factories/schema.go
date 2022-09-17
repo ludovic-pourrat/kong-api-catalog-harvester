@@ -69,7 +69,15 @@ func MergeSchema(value interface{}, schema *openapi3.Schema) (*openapi3.Schema, 
 	if err != nil {
 		return nil, err
 	}
-	return merged, nil
+	return schema, nil
+}
+
+func MergeSchemas(destination *openapi3.Schema, source *openapi3.Schema) error {
+	err := mergo.Merge(destination, source)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func BuildSchema(value interface{}) (*openapi3.Schema, error) {

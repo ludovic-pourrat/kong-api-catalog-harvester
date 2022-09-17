@@ -63,14 +63,57 @@ func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef)
 		} else {
 			contentType = "application/json"
 		}
-		respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
+		var schema *openapi3.Schema
 		responseContent := response.Content.Get(contentType)
-		schema, err := MergeSchema(respBodyJSON, responseContent.Schema.Value)
+		mediaType, mediaTypeParams, err := mime.ParseMediaType(contentType)
 		if err != nil {
-			return false, err
+			schema = openapi3.NewStringSchema()
+			if err != nil {
+				return false, err
+			}
+			err = MergeSchemas(responseContent.Schema.Value, schema)
+			if err != nil {
+				return false, err
+			}
+		} else {
+			switch true {
+			case IsApplicationJSONMediaType(mediaType):
+				respBodyJSON, _ := gojsonschema.NewStringLoader(raw).LoadJSON()
+				schema, err := MergeSchema(respBodyJSON, responseContent.Schema.Value)
+				if err != nil {
+					return false, err
+				}
+				responseContent.Schema.Value = schema
+				updated = true
+			case mediaType == "application/x-www-form-urlencoded":
+				schema, err = BuildForm(raw)
+				if err != nil {
+					return false, err
+				}
+				err = MergeSchemas(responseContent.Schema.Value, schema)
+				if err != nil {
+					return false, err
+				}
+			case mediaType == "multipart/form-data":
+				schema, err = BuildMultiPart(raw, mediaTypeParams)
+				if err != nil {
+					return false, err
+				}
+				err = MergeSchemas(responseContent.Schema.Value, schema)
+				if err != nil {
+					return false, err
+				}
+			default:
+				schema = openapi3.NewStringSchema()
+				if err != nil {
+					return false, err
+				}
+				err = MergeSchemas(responseContent.Schema.Value, schema)
+				if err != nil {
+					return false, err
+				}
+			}
 		}
-		responseContent.Schema.Value = schema
-		updated = true
 	}
 	return updated, nil
 }
