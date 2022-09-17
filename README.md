@@ -14,17 +14,20 @@ Kong plugin to harvest your API catalog. Turn actual API traffic into valuable d
 
 ## Getting Started
 
-How this is working ?
+How is this working ?
 
-The end to end testing works as follow 
+To demonstrate the API harvesting through our plugin we have created an end-to-end testing Docker compose that put the following into action.
 
-- From a sample specification (aka the Swagger Pet Store) we generate a collection with Postman 
-- A Newman runtime will be used to execute the collection
-- From a sample specification (aka the Swagger Pet Store) we generate a mock with Prism
-- Kong will route the newman API request to the Stoplight Prism mock
+- From a given sample API specification (aka the Swagger Pet Store) we generate a collection with Postman 
+- A Docker Newman runtime will be used to execute the collection
+- From the same sample API specification, we generate an API mock with Stoplight Prism
+- Kong will route the generated API request to the mock
 - This plugin will harvest a specification based on the captured API traffic
 
-![alt text](./how-this-is-working.png "Description")
+In the `repository` folder you will find the harvested API specification and in the `snapshots` you will find the learning path of this plugin.
+A new API snapshot being created each time an update is provided by the harvesting.
+
+![alt text](./how-is-this-iworking.png "Description")
 
 ### References
 
