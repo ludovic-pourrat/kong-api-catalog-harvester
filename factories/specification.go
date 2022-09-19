@@ -19,23 +19,24 @@ func BuildSpecification(name string, version string) *openapi3.T {
 	}
 }
 
-func CloneSpecification(specification *openapi3.T, paths pathtrie.PathTrie, methods map[string]string, operations map[string]*openapi3.Operation) *openapi3.T {
+func CloneSpecification(specification *openapi3.T, paths pathtrie.PathTrie) *openapi3.T {
 
 	clone := BuildSpecification(specification.Info.Title, specification.OpenAPI)
-	UpdateSpecification(clone, paths, methods, operations)
-
+	UpdateSpecification(clone, paths)
 	return clone
 }
 
-func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie, methods map[string]string, operations map[string]*openapi3.Operation) {
+func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie) {
 
-	//for name, path := range paths.Trie {
-	//	if name == "" {
-	//		continue
-	//	}
-	//	operation := operations[name]
-	//	specification.AddOperation(path.FullPath, methods[name], operation)
-	//	AddPath(specification.Paths, path.FullPath, methods[name], operation)
-	//}
+	for _, path := range paths.Nodes() {
+		params := BuildParamsPath(path.URL, path.Path)
+		for _, param := range params {
+			if path.Operation.Parameters.GetByInAndName("path", param.Value.Name) == nil {
+				path.Operation.Parameters = append(path.Operation.Parameters, param)
+			}
+		}
+		specification.AddOperation(path.URL, path.Method, path.Operation)
+		AddPath(specification.Paths, path.URL, path.Method, path.Operation)
+	}
 
 }

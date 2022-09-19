@@ -4,6 +4,7 @@ package pathtrie
 
 import (
 	"container/list"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"reflect"
 	"strings"
@@ -14,17 +15,26 @@ type TrieNode struct {
 
 	// Name of the path segment corresponding to this node.
 	// E.g. if this node represents /v1/foo/bar,
-	// the Name would be "bar" and the FullPath would be "/v1/foo/bar".
+	// the Name would be "bar" and the Path would be "/v1/foo/bar".
 	Name string
 
-	// FullPath includes the node's name and uniquely identifies the node in the tree.
-	FullPath string
+	// Unique Id
+	Id string
 
-	// PathParamCounter counts the amount of path params in the FullPath
-	PathParamCounter int
+	// Path includes the node's name and uniquely identifies the node in the tree.
+	Path string
+
+	// URL as it was.
+	URL string
 
 	// Value of the full path
 	Value interface{}
+
+	// Operation
+	Operation *openapi3.Operation
+
+	// Method
+	Method string
 }
 
 type PathToTrieNode map[string]*TrieNode
@@ -40,26 +50,30 @@ func IsNil(a interface{}) bool {
 	return a == nil || (reflect.ValueOf(a).Kind() == reflect.Ptr && reflect.ValueOf(a).IsNil())
 }
 
-// Create a PathTrie with "/" as the path separator.
 func New() PathTrie {
-	return NewWithPathSeparator("/")
-}
-
-// Create a PathTrie with a user-supplied path separator.
-func NewWithPathSeparator(pathSeparator string) PathTrie {
 	return PathTrie{
 		Trie:          make(PathToTrieNode),
-		PathSeparator: pathSeparator,
+		PathSeparator: "/",
 	}
 }
 
 // Insert val at path, with path segments separated by PathSeparator.
 // Returns true if a new path was created, false if an existing path
 // was overwritten.
-func (pt *PathTrie) Insert(path string, val interface{}) bool {
-	return pt.InsertMerge(path, val, func(existing, newV *interface{}) {
-		*existing = *newV
-	})
+func (pt *PathTrie) Insert(computed string,
+	url string,
+	id string,
+	operation *openapi3.Operation,
+	method string,
+	val interface{}) bool {
+	return pt.InsertMerge(computed,
+		url,
+		id,
+		operation,
+		method,
+		val, func(existing, newV *interface{}) {
+			*existing = *newV
+		})
 }
 
 // Insert val at path, with path segments separated by PathSeparator.
@@ -68,108 +82,83 @@ func (pt *PathTrie) Insert(path string, val interface{}) bool {
 //
 // The merge function is responsible for updating the existing value
 // with the new value.
-func (pt *PathTrie) InsertMerge(path string, val interface{}, merge ValueMergeFunc) (isNewPath bool) {
+func (pt *PathTrie) InsertMerge(computed string,
+	url string,
+	id string,
+	operation *openapi3.Operation,
+	method string,
+	val interface{},
+	merge ValueMergeFunc) (isNewPath bool) {
+
 	trie := pt.Trie
 	isNewPath = true
-	// TODO: what about path that ends with pt.PathSeparator is it different ?
-	segments := strings.Split(path, pt.PathSeparator)
+	// TODO: what about computed that ends with pt.PathSeparator is it different ?
+	segments := strings.Split(computed, pt.PathSeparator)
+	urls := strings.Split(url, pt.PathSeparator)
 
-	// Traverse the Trie along path, inserting nodes where necessary.
+	// Traverse the Trie along computed, inserting nodes where necessary.
 	for idx, segment := range segments {
 		isLastSegment := idx == len(segments)-1
 		if node, ok := trie[segment]; ok {
 			if isLastSegment {
-				// If this is the last path segment, then this is the node to update.
-				// If node value is not empty it means that an existing path is overwritten
+				// If this is the last computed segment, then this is the node to update.
+				// If node value is not empty it means that an existing computed is overwritten
 				isNewPath = IsNil(node.Value)
-
 				merge(&node.Value, &val)
 			} else {
-				// Otherwise, continue descending.
 				trie = node.Children
 			}
 		} else {
-			newNode := pt.createPathTrieNode(segments, idx, isLastSegment, val)
-			if len(trie) > 2 {
+			var newNode *TrieNode
+			if len(trie) >= 32 {
 				for k := range trie {
 					delete(trie, k)
 				}
+				// TODO merge query params
 				paramName := utils.GenerateParamName()
 				segments[idx] = paramName
-				trie[paramName] = pt.createPathTrieNode(segments, idx, isLastSegment, val)
-			} else {
-				trie[segment] = newNode
 			}
+			newNode = pt.createPathTrieNode(operation,
+				method,
+				utils.GetName(method, strings.Join(segments, "/")),
+				segments,
+				urls,
+				idx,
+				isLastSegment,
+				val)
+			trie[segment] = newNode
 			// continue descending.
 			trie = newNode.Children
+
 		}
 	}
 
 	return isNewPath
 }
 
-func (pt *PathTrie) createPathTrieNode(segments []string, idx int, isLastSegment bool, val interface{}) *TrieNode {
-	fullPathSegments := segments[:idx+1]
+func (pt *PathTrie) createPathTrieNode(operation *openapi3.Operation,
+	method string,
+	id string,
+	urls []string,
+	segments []string,
+	idx int,
+	isLastSegment bool,
+	val interface{}) *TrieNode {
+	//fullPathSegments := segments[:idx+1]
 	node := &TrieNode{
-		Children: make(PathToTrieNode),
-		Name:     segments[idx],
-		FullPath: strings.Join(fullPathSegments, pt.PathSeparator),
+		Children:  make(PathToTrieNode),
+		Name:      segments[idx],
+		Path:      strings.Join(segments, pt.PathSeparator),
+		Id:        id,
+		Operation: operation,
+		Method:    method,
+		URL:       strings.Join(urls, pt.PathSeparator),
 	}
-	node.PathParamCounter = countPathParam(fullPathSegments)
 	if isLastSegment {
 		node.Value = val
 	}
 
 	return node
-}
-
-func countPathParam(segments []string) int {
-	count := 0
-
-	for _, segment := range segments {
-		if utils.IsPathParam(segment) {
-			count += 1
-		}
-	}
-
-	return count
-}
-
-// GetValue returns the given node path value, nil if node is not found.
-func (pt *PathTrie) GetValue(path string) interface{} {
-	node := pt.getNode(path)
-	if node == nil {
-		return nil
-	}
-
-	return node.Value
-}
-
-// GetPathAndValue returns the given node full path and value, nil if node is not found.
-func (pt *PathTrie) GetPathAndValue(path string) (string, interface{}, bool) {
-	node := pt.getNode(path)
-	if node == nil {
-		return "", nil, false
-	}
-
-	return node.FullPath, node.Value, true
-}
-
-func (pt *PathTrie) getNode(path string) *TrieNode {
-	segments := strings.Split(path, pt.PathSeparator)
-
-	nodes := pt.Trie.getMatchNodes(segments, 0)
-
-	if len(nodes) == 0 {
-		return nil
-	}
-
-	if len(nodes) == 1 {
-		return nodes[0]
-	}
-
-	// if multiple nodes found, return the node with less path params segments
-	return getMostAccurateNode(nodes, path, len(segments))
 }
 
 // Nodes returns a list of all graph nodes
@@ -224,28 +213,6 @@ func (trie PathToTrieNode) getMatchNodes(segments []string, idx int) []*TrieNode
 	return nodes
 }
 
-// getMostAccurateNode returns the node with less path params segments.
-func getMostAccurateNode(nodes []*TrieNode, path string, segmentsLen int) *TrieNode {
-	var retNode *TrieNode
-	minPathParamSegmentsCount := segmentsLen + 1
-
-	for _, node := range nodes {
-		if node.isFullPathMatch(path) {
-			// return exact match
-			return node
-		}
-
-		// TODO: if node.PathParamCounter == minPathParamSegmentsCount
-		if node.PathParamCounter < minPathParamSegmentsCount {
-			// found more accurate node
-			minPathParamSegmentsCount = node.PathParamCounter
-			retNode = node
-		}
-	}
-
-	return retNode
-}
-
 func (node *TrieNode) isNameMatch(segment string) bool {
 	if utils.IsPathParam(node.Name) {
 		return true
@@ -259,5 +226,5 @@ func (node *TrieNode) isNameMatch(segment string) bool {
 }
 
 func (node *TrieNode) isFullPathMatch(path string) bool {
-	return node.FullPath == path
+	return node.Path == path
 }

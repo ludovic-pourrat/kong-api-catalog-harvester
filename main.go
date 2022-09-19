@@ -20,10 +20,8 @@ var Version = "0.0.1"
 var Priority = 1
 var requests = cache.New(5*time.Minute, 10*time.Minute)
 var responses = cache.New(5*time.Minute, 10*time.Minute)
-var specs = make(map[string]*openapi3.T)                         // FIXME add mutex
-var operations = make(map[string]map[string]*openapi3.Operation) // FIXME add mutex
-var methods = make(map[string]map[string]string)                 // FIXME add mutex
-var registeredPaths = pathtrie.New()                             // FIXME add mutex
+var specs = make(map[string]*openapi3.T) // FIXME add mutex
+var registeredPaths = pathtrie.New()     // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -111,8 +109,6 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	}
 	// search specification
 	if _, found := specs[log.Service.Name]; !found {
-		operations[log.Service.Name] = make(map[string]*openapi3.Operation)
-		methods[log.Service.Name] = make(map[string]string)
 		var read *openapi3.T
 		read, err = utils.Read(log.Service.Name)
 		if err != nil {
@@ -127,69 +123,63 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	} else {
 		// aggregate
 		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
-			registeredPaths,
-			methods[log.Service.Name],
-			operations[log.Service.Name])
+			registeredPaths)
 
 	}
 	var name string
 	// match
 	matched, route, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
-	// url
-	url := factories.CreateParameterizedPath(u.Path)
 	if !matched {
+		// computed
+		computed := factories.CreateParameterizedPath(u.Path)
 		// parameters
-		params := factories.BuildParams(url, u.Path, log, logger)
+		params := factories.BuildParams(computed, u.Path, log, logger)
 		// request
 		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
 		// response
 		operationResponse := factories.BuildResponses(*rawResponse, log)
 		// operation
-		name = utils.GetName(log.Request.Method, url)
+		name = utils.GetName(log.Request.Method, computed)
 		operation := &openapi3.Operation{
 			OperationID: name,
 			Parameters:  params,
 			RequestBody: operationRequest,
 			Responses:   operationResponse,
 		}
-		operations[log.Service.Name][name] = operation
-		//if registeredPaths. {
-		//
-		//}
-		registeredPaths.Insert(url, 1)
-		methods[log.Service.Name][name] = log.Request.Method
+		registeredPaths.Insert(computed, u.Path, name, operation, log.Request.Method, 1)
 		updated = true
 	} else {
 		var updatedRequest, updatedResponses bool
 		// merge
 		name = utils.GetName(log.Request.Method, route)
-		loaded := operations[log.Service.Name][name]
-		updatedParams := factories.MergeParams(loaded, url, u.Path, log, logger)
-		updatedRequest, err = factories.MergeRequest(loaded, *rawRequest, contentType, log)
-		if err != nil {
-			logger.Err(err)
-			return
-		}
-		updatedResponses, err = factories.MergeResponses(loaded, *rawResponse, log)
-		if err != nil {
-			logger.Err(err)
-			return
-		}
-		if updatedParams || updatedRequest || updatedResponses {
-			updated = true
+		for _, path := range registeredPaths.Nodes() {
+			if path.Id == name {
+				updatedParams := factories.MergeParams(path.Operation, route, u.Path, log, logger)
+				updatedRequest, err = factories.MergeRequest(path.Operation, *rawRequest, contentType, log)
+				if err != nil {
+					logger.Err(err)
+					return
+				}
+				updatedResponses, err = factories.MergeResponses(path.Operation, *rawResponse, log)
+				if err != nil {
+					logger.Err(err)
+					return
+				}
+				if updatedParams || updatedRequest || updatedResponses {
+					updated = true
+				}
+			}
 		}
 	}
 	if updated {
 		factories.UpdateSpecification(specs[log.Service.Name],
-			registeredPaths,
-			methods[log.Service.Name],
-			operations[log.Service.Name])
+			registeredPaths)
 		err = utils.Write(log.Service.Name, specs[log.Service.Name])
 		if err != nil {
 			logger.Err(err)
-			return
 		}
 	}
+	return
 }
 
 func main() {
