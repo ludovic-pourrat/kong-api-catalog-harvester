@@ -62,13 +62,11 @@ func New() PathTrie {
 // was overwritten.
 func (pt *PathTrie) Insert(computed string,
 	url string,
-	id string,
 	operation *openapi3.Operation,
 	method string,
 	val interface{}) bool {
 	return pt.InsertMerge(computed,
 		url,
-		id,
 		operation,
 		method,
 		val, func(existing, newV *interface{}) {
@@ -84,7 +82,6 @@ func (pt *PathTrie) Insert(computed string,
 // with the new value.
 func (pt *PathTrie) InsertMerge(computed string,
 	url string,
-	id string,
 	operation *openapi3.Operation,
 	method string,
 	val interface{},
@@ -109,24 +106,35 @@ func (pt *PathTrie) InsertMerge(computed string,
 				trie = node.Children
 			}
 		} else {
-			var newNode *TrieNode
-			if len(trie) >= 32 {
-				for k := range trie {
+			var children []*TrieNode
+			if len(trie) >= 2 {
+				for k, v := range trie {
 					delete(trie, k)
+					children = append(children, v)
 				}
 				// TODO merge query params
-				paramName := utils.GenerateParamName()
-				segments[idx] = paramName
+				segment = utils.GenerateParamName()
+				segments[idx] = segment
+				urls[idx] = segment
+				// TODO update (computed, url, id) in parents
 			}
-			newNode = pt.createPathTrieNode(operation,
+			newNode := pt.createPathTrieNode(operation,
 				method,
-				utils.GetName(method, strings.Join(segments, "/")),
+				utils.GetName(method, strings.Join(segments, pt.PathSeparator)),
 				segments,
 				urls,
 				idx,
 				isLastSegment,
 				val)
 			trie[segment] = newNode
+			// merge children
+			for _, child := range children {
+				path := strings.Split(child.Path, pt.PathSeparator)
+				path[idx] = segment
+				newUrl := strings.Split(child.URL, pt.PathSeparator)
+				newUrl[idx] = segment
+				pt.InsertMerge(strings.Join(path, pt.PathSeparator), strings.Join(newUrl, pt.PathSeparator), child.Operation, child.Method, val, merge)
+			}
 			// continue descending.
 			trie = newNode.Children
 

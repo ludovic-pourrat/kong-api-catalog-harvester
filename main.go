@@ -146,7 +146,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 			RequestBody: operationRequest,
 			Responses:   operationResponse,
 		}
-		registeredPaths.Insert(computed, u.Path, name, operation, log.Request.Method, 1)
+		registeredPaths.Insert(computed, u.Path, operation, log.Request.Method, 1)
 		updated = true
 	} else {
 		var updatedRequest, updatedResponses bool
