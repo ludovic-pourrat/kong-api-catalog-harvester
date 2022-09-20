@@ -16,7 +16,7 @@ type PathParam struct {
 }
 
 func generateParamName(pathPart string) string {
-	var seededRand *rand.Rand = rand.New(
+	var seededRand = rand.New(
 		rand.NewSource(time.Now().UnixNano()))
 
 	b := make([]byte, 8)
