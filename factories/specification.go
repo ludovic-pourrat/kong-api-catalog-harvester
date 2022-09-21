@@ -29,14 +29,16 @@ func CloneSpecification(specification *openapi3.T, paths pathtrie.PathTrie) *ope
 func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie) {
 
 	for _, path := range paths.Nodes() {
-		params := BuildParamsPath(path.URL, path.Path)
-		for _, param := range params {
-			if path.Operation.Parameters.GetByInAndName("path", param.Value.Name) == nil {
-				path.Operation.Parameters = append(path.Operation.Parameters, param)
+		if len(path.Children) == 0 {
+			params := BuildParamsPath(path.URL, path.Path)
+			for _, param := range params {
+				if path.Operation.Parameters.GetByInAndName("path", param.Value.Name) == nil {
+					path.Operation.Parameters = append(path.Operation.Parameters, param)
+				}
 			}
+			specification.AddOperation(path.URL, path.Method, path.Operation)
+			AddPath(specification.Paths, path.URL, path.Method, path.Operation)
 		}
-		specification.AddOperation(path.URL, path.Method, path.Operation)
-		AddPath(specification.Paths, path.URL, path.Method, path.Operation)
 	}
 
 }
