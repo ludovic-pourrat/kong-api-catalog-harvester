@@ -86,21 +86,26 @@ func (pt *PathTrie) InsertMerge(segments []string,
 	// Traverse the Trie along computed, inserting nodes where necessary.
 	for idx, segment := range segments {
 		isLastSegment := idx == len(segments)-1
+
 		if node, ok := trie[segment]; ok {
 			if isLastSegment {
 				// If this is the last computed segment, then this is the node to update.
 				// If node value is not empty it means that an existing computed is overwritten
 				isNewPath = IsNil(node.Value)
 				merge(&node.Value, &val)
-				for k, v := range operations {
-					node.Operations[k] = v
+				if !isNewPath {
+					if len(strings.Split(node.URL, pt.PathSeparator)) == len(urls) {
+						for k, v := range operations {
+							node.Operations[k] = v
+						}
+					}
 				}
 			} else {
 				trie = node.Children
 			}
 		} else {
 			var children []*TrieNode
-			if len(trie) >= 8 {
+			if count(trie) >= 6 {
 				for k, v := range trie {
 					delete(trie, k)
 					children = append(children, v)
@@ -222,4 +227,14 @@ func (node *TrieNode) isNameMatch(segment string) bool {
 
 func (node *TrieNode) isFullPathMatch(path string) bool {
 	return node.Path == path
+}
+
+func count(trie map[string]*TrieNode) int {
+	counted := 0
+	for _, v := range trie {
+		if !utils.IsPathParam(v.Name) {
+			counted++
+		}
+	}
+	return counted
 }
