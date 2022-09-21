@@ -18,9 +18,6 @@ type TrieNode struct {
 	// the Name would be "bar" and the Path would be "/v1/foo/bar".
 	Name string
 
-	// Unique Id
-	Id string
-
 	// Path includes the node's name and uniquely identifies the node in the tree.
 	Path string
 
@@ -31,10 +28,7 @@ type TrieNode struct {
 	Value interface{}
 
 	// Operation
-	Operation *openapi3.Operation
-
-	// Method
-	Method string
+	Operations map[string]*openapi3.Operation
 }
 
 type PathToTrieNode map[string]*TrieNode
@@ -65,10 +59,9 @@ func (pt *PathTrie) Insert(computed string,
 	operation *openapi3.Operation,
 	method string,
 	val interface{}) bool {
-	return pt.InsertMerge(computed,
-		url,
-		operation,
-		method,
+	return pt.InsertMerge(strings.Split(computed, pt.PathSeparator),
+		strings.Split(url, pt.PathSeparator),
+		map[string]*openapi3.Operation{method: operation},
 		val, func(existing, newV *interface{}) {
 			*existing = *newV
 		})
@@ -80,18 +73,15 @@ func (pt *PathTrie) Insert(computed string,
 //
 // The merge function is responsible for updating the existing value
 // with the new value.
-func (pt *PathTrie) InsertMerge(computed string,
-	url string,
-	operation *openapi3.Operation,
-	method string,
+func (pt *PathTrie) InsertMerge(segments []string,
+	urls []string,
+	operations map[string]*openapi3.Operation,
 	val interface{},
 	merge ValueMergeFunc) (isNewPath bool) {
 
 	trie := pt.Trie
 	isNewPath = true
 	// TODO: what about computed that ends with pt.PathSeparator is it different ?
-	segments := strings.Split(computed, pt.PathSeparator)
-	urls := strings.Split(url, pt.PathSeparator)
 
 	// Traverse the Trie along computed, inserting nodes where necessary.
 	for idx, segment := range segments {
@@ -102,12 +92,15 @@ func (pt *PathTrie) InsertMerge(computed string,
 				// If node value is not empty it means that an existing computed is overwritten
 				isNewPath = IsNil(node.Value)
 				merge(&node.Value, &val)
+				for k, v := range operations {
+					node.Operations[k] = v
+				}
 			} else {
 				trie = node.Children
 			}
 		} else {
 			var children []*TrieNode
-			if len(trie) >= 2 {
+			if len(trie) >= 8 {
 				for k, v := range trie {
 					delete(trie, k)
 					children = append(children, v)
@@ -118,9 +111,7 @@ func (pt *PathTrie) InsertMerge(computed string,
 				urls[idx] = segment
 				// TODO update (computed, url, id) in parents
 			}
-			newNode := pt.createPathTrieNode(operation,
-				method,
-				utils.GetName(method, strings.Join(segments, pt.PathSeparator)),
+			newNode := pt.createPathTrieNode(operations,
 				segments,
 				urls,
 				idx,
@@ -133,7 +124,7 @@ func (pt *PathTrie) InsertMerge(computed string,
 				path[idx] = segment
 				newUrl := strings.Split(child.URL, pt.PathSeparator)
 				newUrl[idx] = segment
-				pt.InsertMerge(strings.Join(path, pt.PathSeparator), strings.Join(newUrl, pt.PathSeparator), child.Operation, child.Method, val, merge)
+				pt.InsertMerge(path, newUrl, child.Operations, val, merge)
 			}
 			// continue descending.
 			trie = newNode.Children
@@ -144,9 +135,7 @@ func (pt *PathTrie) InsertMerge(computed string,
 	return isNewPath
 }
 
-func (pt *PathTrie) createPathTrieNode(operation *openapi3.Operation,
-	method string,
-	id string,
+func (pt *PathTrie) createPathTrieNode(operations map[string]*openapi3.Operation,
 	urls []string,
 	segments []string,
 	idx int,
@@ -154,13 +143,11 @@ func (pt *PathTrie) createPathTrieNode(operation *openapi3.Operation,
 	val interface{}) *TrieNode {
 	//fullPathSegments := segments[:idx+1]
 	node := &TrieNode{
-		Children:  make(PathToTrieNode),
-		Name:      segments[idx],
-		Path:      strings.Join(segments, pt.PathSeparator),
-		Id:        id,
-		Operation: operation,
-		Method:    method,
-		URL:       strings.Join(urls, pt.PathSeparator),
+		Children:   make(PathToTrieNode),
+		Name:       segments[idx],
+		Path:       strings.Join(segments, pt.PathSeparator),
+		Operations: operations,
+		URL:        strings.Join(urls, pt.PathSeparator),
 	}
 	if isLastSegment {
 		node.Value = val

@@ -20,6 +20,9 @@ func match(method string, path string, contentType string, specification *openap
 	}
 	route, _, err := router.FindRoute(search)
 	if err != nil {
+		if route != nil {
+			return false, route.Path, err
+		}
 		return false, "", err
 	}
 	if route == nil {

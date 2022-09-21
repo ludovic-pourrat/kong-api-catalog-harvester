@@ -30,14 +30,17 @@ func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie) {
 
 	for _, path := range paths.Nodes() {
 		if len(path.Children) == 0 {
-			params := BuildParamsPath(path.URL, path.Path)
-			for _, param := range params {
-				if path.Operation.Parameters.GetByInAndName("path", param.Value.Name) == nil {
-					path.Operation.Parameters = append(path.Operation.Parameters, param)
-				}
+			// TODO merge params
+			//params := BuildParamsPath(path.URL, path.Path)
+			//for _, param := range params {
+			//	if path.Operation.Parameters.GetByInAndName("path", param.Value.Name) == nil {
+			//		path.Operation.Parameters = append(path.Operation.Parameters, param)
+			//	}
+			//}
+			for method, operation := range path.Operations {
+				specification.AddOperation(path.URL, method, operation)
+				AddPath(specification.Paths, path.URL, method, operation)
 			}
-			specification.AddOperation(path.URL, path.Method, path.Operation)
-			AddPath(specification.Paths, path.URL, path.Method, path.Operation)
 		}
 	}
 

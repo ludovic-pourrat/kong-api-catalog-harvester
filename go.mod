@@ -2,7 +2,7 @@ module github.com/ludovic-pourrat/kong-api-catalog-harvester
 
 go 1.19
 
-// replace github.com/getkin/kin-openapi => github.com/ludovic-pourrat/kin-openapi v0.0.0-20220913095341-753d47b4845d
+replace github.com/getkin/kin-openapi => github.com/ludovic-pourrat/kin-openapi v0.0.0-20220921094554-9e3cfffce426
 
 require (
 	github.com/Kong/go-pdk v0.8.0

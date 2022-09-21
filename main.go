@@ -13,6 +13,7 @@ import (
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils/pathtrie"
 	"github.com/patrickmn/go-cache"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -128,10 +129,13 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	}
 	var name string
 	// match
-	matched, route, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	matched, route, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
 	if !matched {
 		// computed
 		computed := factories.CreateParameterizedPath(u.Path)
+		if strings.EqualFold(err.Error(), "method not allowed") {
+			computed = route
+		}
 		// parameters
 		params := factories.BuildParams(computed, u.Path, log, logger)
 		// request
@@ -153,20 +157,22 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		// merge
 		name = utils.GetName(log.Request.Method, route)
 		for _, path := range registeredPaths.Nodes() {
-			if path.Id == name {
-				updatedParams := factories.MergeParams(path.Operation, route, u.Path, log, logger)
-				updatedRequest, err = factories.MergeRequest(path.Operation, *rawRequest, contentType, log)
-				if err != nil {
-					logger.Err(err)
-					return
-				}
-				updatedResponses, err = factories.MergeResponses(path.Operation, *rawResponse, log)
-				if err != nil {
-					logger.Err(err)
-					return
-				}
-				if updatedParams || updatedRequest || updatedResponses {
-					updated = true
+			for _, operation := range path.Operations {
+				if operation.OperationID == name {
+					updatedParams := factories.MergeParams(operation, route, u.Path, log, logger)
+					updatedRequest, err = factories.MergeRequest(operation, *rawRequest, contentType, log)
+					if err != nil {
+						logger.Err(err)
+						return
+					}
+					updatedResponses, err = factories.MergeResponses(operation, *rawResponse, log)
+					if err != nil {
+						logger.Err(err)
+						return
+					}
+					if updatedParams || updatedRequest || updatedResponses {
+						updated = true
+					}
 				}
 			}
 		}
