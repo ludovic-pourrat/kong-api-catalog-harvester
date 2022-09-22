@@ -131,10 +131,12 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	// match
 	matched, route, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
 	if !matched {
+		var computed string
 		// computed
-		computed := factories.CreateParameterizedPath(u.Path)
 		if strings.EqualFold(err.Error(), "method not allowed") {
-			computed = route
+			computed = factories.CreateParameterizedPath(route)
+		} else {
+			computed = factories.CreateParameterizedPath(u.Path)
 		}
 		// parameters
 		params := factories.BuildParams(computed, u.Path, log, logger)
@@ -143,7 +145,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		// response
 		operationResponse := factories.BuildResponses(*rawResponse, log)
 		// operation
-		name = utils.GetName(log.Request.Method, computed)
+		name = utils.GetName(log.Request.Method, strings.Split(computed, "/"))
 		operation := &openapi3.Operation{
 			OperationID: name,
 			Parameters:  params,
@@ -155,7 +157,7 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	} else {
 		var updatedRequest, updatedResponses bool
 		// merge
-		name = utils.GetName(log.Request.Method, route)
+		name = utils.GetName(log.Request.Method, strings.Split(route, "/"))
 		for _, path := range registeredPaths.Nodes() {
 			for _, operation := range path.Operations {
 				if operation.OperationID == name {

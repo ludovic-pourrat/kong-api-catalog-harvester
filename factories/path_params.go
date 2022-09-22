@@ -1,6 +1,7 @@
 package factories
 
 import (
+	"fmt"
 	spec "github.com/getkin/kin-openapi/openapi3"
 	"github.com/google/uuid"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
@@ -16,18 +17,37 @@ func CreateParameterizedPath(path string) string {
 	var ParameterizedPathParts []string
 	pathParts := strings.Split(path, "/")
 
-	for _, part := range pathParts {
+	for idx, part := range pathParts {
 		// if part is a suspect param, replace it with a param name, otherwise do nothing
-		if isSuspectPathParam(part) {
-			ParameterizedPathParts = append(ParameterizedPathParts, utils.GenerateParamName())
+		if isSuspectPathParam(part) && !utils.IsPathParam(part) {
+			var name string
+			if idx < 1 {
+				name = getParamName(part)
+			} else {
+				if utils.IsPathParam(pathParts[idx-1]) {
+					name = "name-" + getParamName(part)
+				} else {
+					name = pathParts[idx-1] + "-" + getParamName(part)
+				}
+			}
+			ParameterizedPathParts = append(ParameterizedPathParts, fmt.Sprintf("{%s}", name))
 		} else {
 			ParameterizedPathParts = append(ParameterizedPathParts, part)
 		}
 	}
-
 	parameterizedPath := strings.Join(ParameterizedPathParts, "/")
-
 	return parameterizedPath
+}
+
+func getParamName(pathPart string) string {
+	if isNumber(pathPart) {
+		return "id"
+	} else if isUUID(pathPart) {
+		return "uuid"
+	} else if isToken(pathPart) {
+		return "token"
+	}
+	return pathPart
 }
 
 func getParamSchema(pathPart string) *spec.Schema {

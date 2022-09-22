@@ -2,20 +2,17 @@ package utils
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 )
 
-func GetName(method string, url string) string {
-	pathParts := strings.Split(url, "/")
+func GetName(method string, paths []string) string {
 	name := method
-	for _, path := range pathParts {
+	for _, path := range paths {
 		if len(path) > 0 {
 			if !IsPathParam(path) {
 				name += "-" + path
 			} else {
-				name += "-by-" + "x"
+				name += "-by-" + GetParam(path)
 			}
 		}
 	}
@@ -27,15 +24,20 @@ func IsPathParam(segment string) bool {
 		strings.HasSuffix(segment, "}")
 }
 
-const charset = "abcdefghijklmnopqrstuvwxyz"
+func GetParam(segment string) string {
+	return strings.TrimPrefix(strings.TrimSuffix(segment, "}"), "{")
+}
 
-func GenerateParamName() string {
-	var seededRand *rand.Rand = rand.New(
-		rand.NewSource(time.Now().UnixNano()))
-
-	b := make([]byte, 8)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
+func GenerateParamName(idx int, parts []string) string {
+	var name string
+	if idx < 1 {
+		name = "nane"
+	} else {
+		if IsPathParam(parts[idx-1]) {
+			name = parts[idx-1] + "-name"
+		} else {
+			name = GetParam(parts[idx-1]) + "-name"
+		}
 	}
-	return fmt.Sprintf("{%s}", string(b))
+	return fmt.Sprintf("{%s}", name)
 }

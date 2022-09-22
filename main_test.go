@@ -18,15 +18,27 @@ func Test_process(t *testing.T) {
 	}{
 		{
 			name: "Find pet by ID",
-			log:  fmt.Sprintf(logPattern, "pet/toto/store/yellow"),
+			log:  fmt.Sprintf(logPattern, "pet/123/store/yellow"),
 		},
 		{
 			name: "Find pet by ID",
-			log:  fmt.Sprintf(logPattern, "pet/titi/store/blue"),
+			log:  fmt.Sprintf(logPattern, "pet/123/store/blue"),
 		},
 		{
 			name: "Find pet by ID",
-			log:  fmt.Sprintf(logPattern, "pet/tata/store/red"),
+			log:  fmt.Sprintf(logPattern, "pet/123/store/red"),
+		},
+		{
+			name: "Find pet by ID",
+			log:  fmt.Sprintf(logPattern, "pet/123/store/brown"),
+		},
+		{
+			name: "Find pet by ID",
+			log:  fmt.Sprintf(logPattern, "pet/123/store/yyyy"),
+		},
+		{
+			name: "Find pet by ID",
+			log:  fmt.Sprintf(logPattern, "pet/123/store/dsdsdsd"),
 		},
 		{
 			name: "Find pet by ID",

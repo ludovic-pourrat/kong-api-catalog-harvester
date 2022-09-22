@@ -2,6 +2,7 @@ package factories
 
 import (
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils/pathtrie"
 )
 
 func BuildSpecification(name string, version string) *openapi3.T {
@@ -18,14 +19,14 @@ func BuildSpecification(name string, version string) *openapi3.T {
 	}
 }
 
-func CloneSpecification(specification *openapi3.T, paths PathTrie) *openapi3.T {
+func CloneSpecification(specification *openapi3.T, paths pathtrie.PathTrie) *openapi3.T {
 
 	clone := BuildSpecification(specification.Info.Title, specification.OpenAPI)
 	UpdateSpecification(clone, paths)
 	return clone
 }
 
-func UpdateSpecification(specification *openapi3.T, paths PathTrie) {
+func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie) {
 
 	for _, path := range paths.Nodes() {
 		// TODO merge params

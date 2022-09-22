@@ -8,7 +8,10 @@ import (
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"reflect"
 	"strings"
+	"sync"
 )
+
+var mu sync.Mutex
 
 type TrieNode struct {
 	Children PathToTrieNode
@@ -88,32 +91,36 @@ func (pt *PathTrie) InsertMerge(segments []string,
 		isLastSegment := idx == len(segments)-1
 
 		if node, ok := trie[segment]; ok {
+			if len(strings.Split(node.URL, pt.PathSeparator)) == len(urls) {
+				for k, v := range operations {
+					node.Operations[k] = v
+				}
+			}
 			if isLastSegment {
 				// If this is the last computed segment, then this is the node to update.
 				// If node value is not empty it means that an existing computed is overwritten
 				isNewPath = IsNil(node.Value)
 				merge(&node.Value, &val)
-				if !isNewPath {
-					if len(strings.Split(node.URL, pt.PathSeparator)) == len(urls) {
-						for k, v := range operations {
-							node.Operations[k] = v
-						}
-					}
-				}
 			} else {
 				trie = node.Children
 			}
 		} else {
 			var children []*TrieNode
-			if count(trie) >= 6 {
+			if len(trie) >= 16 {
 				for k, v := range trie {
+					for _, child := range v.Children {
+						children = append(children, child)
+					}
 					delete(trie, k)
-					children = append(children, v)
 				}
 				// TODO merge query params
-				segment = utils.GenerateParamName()
-				segments[idx] = segment
-				urls[idx] = segment
+				if !utils.IsPathParam(segment) {
+					segment = utils.GenerateParamName(idx, segments)
+					segments[idx] = segment
+					for k, _ := range operations {
+						operations[k].OperationID = utils.GetName(k, segments)
+					}
+				}
 				// TODO update (computed, url, id) in parents
 			}
 			newNode := pt.createPathTrieNode(operations,
@@ -125,11 +132,17 @@ func (pt *PathTrie) InsertMerge(segments []string,
 			trie[segment] = newNode
 			// merge children
 			for _, child := range children {
-				path := strings.Split(child.Path, pt.PathSeparator)
-				path[idx] = segment
-				newUrl := strings.Split(child.URL, pt.PathSeparator)
-				newUrl[idx] = segment
-				pt.InsertMerge(path, newUrl, child.Operations, val, merge)
+				paths := strings.Split(child.Path, pt.PathSeparator)
+				paths[idx] = segment
+				for k, v := range child.Operations {
+					v.OperationID = utils.GetName(k, paths)
+				}
+				child.Path = strings.Join(paths, "/")
+				pt.InsertMerge(paths,
+					strings.Split(child.URL, pt.PathSeparator),
+					child.Operations,
+					val,
+					merge)
 			}
 			// continue descending.
 			trie = newNode.Children
@@ -141,8 +154,8 @@ func (pt *PathTrie) InsertMerge(segments []string,
 }
 
 func (pt *PathTrie) createPathTrieNode(operations map[string]*openapi3.Operation,
-	urls []string,
 	segments []string,
+	urls []string,
 	idx int,
 	isLastSegment bool,
 	val interface{}) *TrieNode {
@@ -182,59 +195,4 @@ func (pt *PathTrie) Nodes() []*TrieNode {
 		queue.Remove(qnode)
 	}
 	return nodes
-}
-
-func (trie PathToTrieNode) getMatchNodes(segments []string, idx int) []*TrieNode {
-	var nodes []*TrieNode
-
-	isLastSegment := idx == len(segments)-1
-
-	for _, node := range trie {
-		// Check for node segment match
-		if !node.isNameMatch(segments[idx]) {
-			continue
-		}
-
-		// If this is the last path segment, then return node if it holds a value.
-		if isLastSegment {
-			if node.Value != nil {
-				nodes = append(nodes, node)
-			}
-			continue
-		}
-
-		// Otherwise, continue descending.
-		newNodes := node.Children.getMatchNodes(segments, idx+1)
-		if len(newNodes) > 0 {
-			nodes = append(nodes, newNodes...)
-		}
-	}
-
-	return nodes
-}
-
-func (node *TrieNode) isNameMatch(segment string) bool {
-	if utils.IsPathParam(node.Name) {
-		return true
-	}
-
-	if node.Name == segment {
-		return true
-	}
-
-	return false
-}
-
-func (node *TrieNode) isFullPathMatch(path string) bool {
-	return node.Path == path
-}
-
-func count(trie map[string]*TrieNode) int {
-	counted := 0
-	for _, v := range trie {
-		if !utils.IsPathParam(v.Name) {
-			counted++
-		}
-	}
-	return counted
 }
