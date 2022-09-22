@@ -89,9 +89,8 @@ func (pt *PathTrie) InsertMerge(segments []string,
 	// Traverse the Trie along computed, inserting nodes where necessary.
 	for idx, segment := range segments {
 		isLastSegment := idx == len(segments)-1
-
 		if node, ok := trie[segment]; ok {
-			if len(strings.Split(node.URL, pt.PathSeparator)) == len(urls) {
+			if len(urls) == idx+1 {
 				for k, v := range operations {
 					node.Operations[k] = v
 				}

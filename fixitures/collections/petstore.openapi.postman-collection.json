@@ -351,7 +351,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"id\": {{$randomInt}},\n  \"petId\": {{$randomInt}},\n  \"quantity\": 1\n}",
+									"raw": "{\n  \"id\": {{$randomInt}},\n  \"quantity\": {{$randomInt}},\n  \"shipDate\": \"2022-09-22T09:50:18.996Z\",\n  \"status\": \"approved\",\n  \"complete\": true\n}",
 									"options": {
 										"raw": {
 											"language": "json"
