@@ -9,10 +9,7 @@ import (
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"reflect"
 	"strings"
-	"sync"
 )
-
-var mu sync.Mutex
 
 type TrieNode struct {
 	Children PathToTrieNode
@@ -55,9 +52,6 @@ func New() PathTrie {
 	}
 }
 
-// Insert val at path, with path segments separated by PathSeparator.
-// Returns true if a new path was created, false if an existing path
-// was overwritten.
 func (pt *PathTrie) Insert(computed string,
 	url string,
 	operation *openapi3.Operation,
@@ -74,12 +68,6 @@ func (pt *PathTrie) Insert(computed string,
 	return isNewPath
 }
 
-// Insert val at path, with path segments separated by PathSeparator.
-// Returns true if a new path was created, false if an existing path
-// was overwritten.
-//
-// The merge function is responsible for updating the existing value
-// with the new value.
 func (pt *PathTrie) InsertMerge(segments []string,
 	urls []string,
 	operations map[string]*openapi3.Operation,
@@ -121,7 +109,7 @@ func (pt *PathTrie) InsertMerge(segments []string,
 				if !utils.IsPathParam(segment) {
 					segment = utils.GenerateParamName(idx, segments)
 					segments[idx] = segment
-					for k, _ := range operations {
+					for k := range operations {
 						operations[k].OperationID = utils.GetName(k, segments)
 					}
 				}
@@ -182,7 +170,6 @@ func (pt *PathTrie) createPathTrieNode(operations map[string]*openapi3.Operation
 	return node
 }
 
-// Nodes returns a list of all graph nodes
 func (pt *PathTrie) Nodes() []*TrieNode {
 	//track the visited nodes
 	var nodes []*TrieNode
@@ -193,14 +180,14 @@ func (pt *PathTrie) Nodes() []*TrieNode {
 	nodes = append(nodes, root)
 	queue.PushBack(root)
 	for queue.Len() > 0 {
-		qnode := queue.Front()
+		queueNode := queue.Front()
 		// iterate through all of its friends
-		// mark the visited nodes; enqueue the non-visted
-		for _, node := range qnode.Value.(*TrieNode).Children {
+		// mark the visited nodes; enqueue the non-visited
+		for _, node := range queueNode.Value.(*TrieNode).Children {
 			nodes = append(nodes, node)
 			queue.PushBack(node)
 		}
-		queue.Remove(qnode)
+		queue.Remove(queueNode)
 	}
 	return nodes
 }

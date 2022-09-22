@@ -29,7 +29,7 @@ type Config struct {
 }
 
 func New() interface{} {
-	utils.Init()
+	_ = utils.Init()
 	return &Config{}
 }
 
@@ -44,38 +44,38 @@ func (conf Config) Response(kong *pdk.PDK) {
 	logger := kong.Log
 	id, err := kong.Request.GetHeader("Kong-Request-ID")
 	if err != nil {
-		kong.Log.Err("Error getting unique request id: ", err.Error())
+		_ = logger.Err("Error getting unique request id: ", err.Error())
 		return
 	}
 	request, err := kong.Request.GetRawBody()
 	if err != nil {
-		logger.Err(err)
+		_ = logger.Err(err)
 		return
 	}
 	requests.SetDefault(id, &request)
 	response, err := kong.ServiceResponse.GetRawBody()
 	if err != nil {
-		logger.Err(err)
+		_ = logger.Err(err)
 		return
 	}
 	responses.SetDefault(id, &response)
-	//os.WriteFile("/logs/request.log", request, 0644) TODO remove
-	//os.WriteFile("/logs/response.log", []byte(response), 0644) TODO remove
+
 }
 
 func (conf Config) Log(kong *pdk.PDK) {
 	if !conf.Active() {
 		return
 	}
+	logger := kong.Log
 	// get and parse log message
 	rawLog, err := kong.Log.Serialize()
 	if err != nil {
-		kong.Log.Err("Error getting log message: ", err.Error())
+		_ = logger.Err("Error getting log message: ", err.Error())
 		return
 	}
 	id, err := kong.Request.GetHeader("Kong-Request-ID")
 	if err != nil {
-		kong.Log.Err("Error getting unique request id: ", err.Error())
+		_ = logger.Err("Error getting unique request id: ", err.Error())
 		return
 	}
 	// retrieve request and response from cache
@@ -88,36 +88,36 @@ func (conf Config) Log(kong *pdk.PDK) {
 }
 
 func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log.Log) {
-	var log types.Log
+	var captured types.Log
 	var updated = false
 	// build
-	if err := json.Unmarshal([]byte(*rawLog), &log); err != nil {
-		logger.Err("Error unmarshalling log message: ", err.Error())
+	if err := json.Unmarshal([]byte(*rawLog), &captured); err != nil {
+		_ = logger.Err("Error unmarshalling log message: ", err.Error())
 		return
 	}
 	// URL
-	u, err := url.Parse(log.UpstreamURI)
+	u, err := url.Parse(captured.UpstreamURI)
 	if err != nil {
-		logger.Err(err)
+		_ = logger.Err(err)
 		return
 	}
 	// content Type
 	var contentType string
-	if _, found := log.Request.Headers["content-type"]; found {
-		contentType = log.Request.Headers["content-type"].(string)
+	if _, found := captured.Request.Headers["content-type"]; found {
+		contentType = captured.Request.Headers["content-type"].(string)
 	} else {
 		contentType = "application/json"
 	}
 	// search specification
-	if _, found := specs[log.Service.Name]; !found {
-		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
+	if _, found := specs[captured.Service.Name]; !found {
+		specs[captured.Service.Name] = factories.BuildSpecification(captured.Service.Name, "3.0.0")
 	} else {
-		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
+		specs[captured.Service.Name] = factories.CloneSpecification(specs[captured.Service.Name],
 			registeredPaths)
 	}
 	var name string
 	// match
-	matched, route, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	matched, route, err := match(captured.Request.Method, u.Path, contentType, specs[captured.Service.Name])
 	if !matched {
 		var computed string
 		// computed
@@ -127,37 +127,37 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 			computed = factories.CreateParameterizedPath(u.Path)
 		}
 		// parameters
-		params := factories.BuildParams(computed, u.Path, log, logger)
+		params := factories.BuildParams(computed, u.Path, captured, logger)
 		// request
-		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
+		operationRequest := factories.BuildRequest(*rawRequest, contentType, captured)
 		// response
-		operationResponse := factories.BuildResponses(*rawResponse, log)
+		operationResponse := factories.BuildResponses(*rawResponse, captured)
 		// operation
-		name = utils.GetName(log.Request.Method, strings.Split(computed, "/"))
+		name = utils.GetName(captured.Request.Method, strings.Split(computed, "/"))
 		operation := &openapi3.Operation{
 			OperationID: name,
 			Parameters:  params,
 			RequestBody: operationRequest,
 			Responses:   operationResponse,
 		}
-		registeredPaths.Insert(computed, u.Path, operation, log.Request.Method, 1)
+		registeredPaths.Insert(computed, u.Path, operation, captured.Request.Method, 1)
 		updated = true
 	} else {
 		var updatedRequest, updatedResponses bool
 		// merge
-		name = utils.GetName(log.Request.Method, strings.Split(route, "/"))
+		name = utils.GetName(captured.Request.Method, strings.Split(route, "/"))
 		for _, path := range registeredPaths.Nodes() {
 			for _, operation := range path.Operations {
 				if operation.OperationID == name {
-					updatedParams := factories.MergeParams(operation, route, u.Path, log, logger)
-					updatedRequest, err = factories.MergeRequest(operation, *rawRequest, contentType, log)
+					updatedParams := factories.MergeParams(operation, route, u.Path, captured, logger)
+					updatedRequest, err = factories.MergeRequest(operation, *rawRequest, contentType, captured)
 					if err != nil {
-						logger.Err(err)
+						_ = logger.Err(err)
 						return
 					}
-					updatedResponses, err = factories.MergeResponses(operation, *rawResponse, log)
+					updatedResponses, err = factories.MergeResponses(operation, *rawResponse, captured)
 					if err != nil {
-						logger.Err(err)
+						_ = logger.Err(err)
 						return
 					}
 					if updatedParams || updatedRequest || updatedResponses {
@@ -168,11 +168,11 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 		}
 	}
 	if updated {
-		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
+		specs[captured.Service.Name] = factories.CloneSpecification(specs[captured.Service.Name],
 			registeredPaths)
-		err = utils.Write(log.Service.Name, specs[log.Service.Name])
+		err = utils.Write(captured.Service.Name, specs[captured.Service.Name])
 		if err != nil {
-			logger.Err(err)
+			_ = logger.Err(err)
 		}
 	}
 	return

@@ -19,7 +19,7 @@ func BuildParams(url string, path string, log types.Log, logger log.Log) []*open
 		case []interface{}:
 			schema = openapi3.NewArraySchema().WithItems(openapi3.NewStringSchema())
 		default:
-			logger.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
+			_ = logger.Err("unknown type for querystring ", fmt.Sprintf("%T", v))
 		}
 		param := openapi3.ParameterRef{
 			Value: openapi3.NewQueryParameter(k).WithSchema(schema),
@@ -28,25 +28,6 @@ func BuildParams(url string, path string, log types.Log, logger log.Log) []*open
 	}
 
 	parts := strings.Split(url, "/")
-	values := strings.Split(path, "/")
-
-	for index, part := range parts {
-		if utils.IsPathParam(part) {
-			part = strings.TrimPrefix(part, "{")
-			part = strings.TrimSuffix(part, "}")
-			param := openapi3.ParameterRef{
-				Value: openapi3.NewPathParameter(part).WithSchema(getParamSchema(values[index])),
-			}
-			params = append(params, &param)
-		}
-	}
-
-	return params
-}
-
-func BuildParamsPath(computed string, path string) []*openapi3.ParameterRef {
-	var params []*openapi3.ParameterRef
-	parts := strings.Split(computed, "/")
 	values := strings.Split(path, "/")
 
 	for index, part := range parts {
@@ -81,13 +62,4 @@ func MergeParams(operation *openapi3.Operation, url string, path string, log typ
 		}
 	}
 	return updated
-}
-
-func contains(s []*openapi3.ParameterRef, e *openapi3.ParameterRef) bool {
-	for _, a := range s {
-		if a.Value.Name == e.Value.Name {
-			return true
-		}
-	}
-	return false
 }
