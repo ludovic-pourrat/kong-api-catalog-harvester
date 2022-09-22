@@ -1,6 +1,9 @@
 package factories
 
-import "github.com/getkin/kin-openapi/openapi3"
+import (
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils/pathtrie"
+)
 
 func BuildSpecification(name string, version string) *openapi3.T {
 
@@ -16,26 +19,28 @@ func BuildSpecification(name string, version string) *openapi3.T {
 	}
 }
 
-func CloneSpecification(specification *openapi3.T,
-	paths map[string]string,
-	methods map[string]string,
-	operations map[string]*openapi3.Operation) *openapi3.T {
+func CloneSpecification(specification *openapi3.T, paths pathtrie.PathTrie) *openapi3.T {
 
 	clone := BuildSpecification(specification.Info.Title, specification.OpenAPI)
-	UpdateSpecification(clone, paths, methods, operations)
-
+	UpdateSpecification(clone, paths)
 	return clone
 }
 
-func UpdateSpecification(specification *openapi3.T,
-	paths map[string]string,
-	methods map[string]string,
-	operations map[string]*openapi3.Operation) {
+func UpdateSpecification(specification *openapi3.T, paths pathtrie.PathTrie) {
 
-	for name, path := range paths {
-		operation := operations[name]
-		specification.AddOperation(path, methods[name], operation)
-		AddPath(specification.Paths, path, methods[name], operation)
+	for _, path := range paths.Nodes() {
+		// TODO merge params
+		//params := BuildParamsPath(path.URL, path.Path)
+		//for _, param := range params {
+		//	if path.Operation.Parameters.GetByInAndName("path", param.Value.Name) == nil {
+		//		path.Operation.Parameters = append(path.Operation.Parameters, param)
+		//	}
+		//}
+		for method, operation := range path.Operations {
+			specification.AddOperation(path.Path, method, operation)
+			AddPath(specification.Paths, path.Path, method, operation)
+		}
+
 	}
 
 }

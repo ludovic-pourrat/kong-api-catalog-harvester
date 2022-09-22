@@ -10,8 +10,10 @@ import (
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/factories"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils/pathtrie"
 	"github.com/patrickmn/go-cache"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -19,10 +21,8 @@ var Version = "0.0.1"
 var Priority = 1
 var requests = cache.New(5*time.Minute, 10*time.Minute)
 var responses = cache.New(5*time.Minute, 10*time.Minute)
-var specs = make(map[string]*openapi3.T)                         // FIXME add mutex
-var operations = make(map[string]map[string]*openapi3.Operation) // FIXME add mutex
-var methods = make(map[string]map[string]string)                 // FIXME add mutex
-var registeredPaths = make(map[string]map[string]string)         // FIXME add mutex
+var specs = make(map[string]*openapi3.T) // FIXME add mutex
+var registeredPaths = pathtrie.New()     // FIXME add mutex
 
 type Config struct {
 	PluginActive *bool `json:"active"`
@@ -110,83 +110,72 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	}
 	// search specification
 	if _, found := specs[log.Service.Name]; !found {
-		operations[log.Service.Name] = make(map[string]*openapi3.Operation)
-		methods[log.Service.Name] = make(map[string]string)
-		registeredPaths[log.Service.Name] = make(map[string]string)
-		var read *openapi3.T
-		read, err = utils.Read(log.Service.Name)
-		if err != nil {
-			logger.Err(err)
-			return
-		}
-		if read == nil {
-			specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
-		} else {
-			specs[log.Service.Name] = read
-		}
+		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
 	} else {
-		// aggregate
 		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
-			registeredPaths[log.Service.Name],
-			methods[log.Service.Name],
-			operations[log.Service.Name])
-
+			registeredPaths)
 	}
 	var name string
 	// match
-	matched, route, _ := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
+	matched, route, err := match(log.Request.Method, u.Path, contentType, specs[log.Service.Name])
 	if !matched {
-		// url
-		url := factories.CreateParameterizedPath(u.Path)
+		var computed string
+		// computed
+		if strings.EqualFold(err.Error(), "method not allowed") {
+			computed = factories.CreateParameterizedPath(route)
+		} else {
+			computed = factories.CreateParameterizedPath(u.Path)
+		}
 		// parameters
-		params := factories.BuildParams(url, u.Path, log, logger)
+		params := factories.BuildParams(computed, u.Path, log, logger)
 		// request
 		operationRequest := factories.BuildRequest(*rawRequest, contentType, log)
 		// response
 		operationResponse := factories.BuildResponses(*rawResponse, log)
 		// operation
-		name = utils.GetName(log.Request.Method, url)
+		name = utils.GetName(log.Request.Method, strings.Split(computed, "/"))
 		operation := &openapi3.Operation{
 			OperationID: name,
 			Parameters:  params,
 			RequestBody: operationRequest,
 			Responses:   operationResponse,
 		}
-		operations[log.Service.Name][name] = operation
-		registeredPaths[log.Service.Name][name] = url
-		methods[log.Service.Name][name] = log.Request.Method
+		registeredPaths.Insert(computed, u.Path, operation, log.Request.Method, 1)
 		updated = true
 	} else {
 		var updatedRequest, updatedResponses bool
 		// merge
-		name = utils.GetName(log.Request.Method, route)
-		loaded := operations[log.Service.Name][name]
-		updatedParams := factories.MergeParams(loaded, registeredPaths[log.Service.Name][name], u.Path, log, logger)
-		updatedRequest, err = factories.MergeRequest(loaded, *rawRequest, contentType, log)
-		if err != nil {
-			logger.Err(err)
-			return
-		}
-		updatedResponses, err = factories.MergeResponses(loaded, *rawResponse, log)
-		if err != nil {
-			logger.Err(err)
-			return
-		}
-		if updatedParams || updatedRequest || updatedResponses {
-			updated = true
+		name = utils.GetName(log.Request.Method, strings.Split(route, "/"))
+		for _, path := range registeredPaths.Nodes() {
+			for _, operation := range path.Operations {
+				if operation.OperationID == name {
+					updatedParams := factories.MergeParams(operation, route, u.Path, log, logger)
+					updatedRequest, err = factories.MergeRequest(operation, *rawRequest, contentType, log)
+					if err != nil {
+						logger.Err(err)
+						return
+					}
+					updatedResponses, err = factories.MergeResponses(operation, *rawResponse, log)
+					if err != nil {
+						logger.Err(err)
+						return
+					}
+					if updatedParams || updatedRequest || updatedResponses {
+						updated = true
+					}
+				}
+			}
 		}
 	}
 	if updated {
-		factories.UpdateSpecification(specs[log.Service.Name],
-			registeredPaths[log.Service.Name],
-			methods[log.Service.Name],
-			operations[log.Service.Name])
+		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
+			registeredPaths)
 		err = utils.Write(log.Service.Name, specs[log.Service.Name])
 		if err != nil {
 			logger.Err(err)
-			return
 		}
 	}
+	return
 }
 
 func main() {

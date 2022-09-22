@@ -11,7 +11,7 @@
 			"name": "pet",
 			"item": [
 				{
-					"name": "{id}",
+					"name": "{Id}",
 					"item": [
 						{
 							"name": "Find pet by id",
@@ -209,7 +209,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/pet/findByTags?tags=<string>&tags=<string>",
+							"raw": "{{baseUrl}}/pet/findByTags?tags={{$randomNoun}}&tags={{$randomNoun}}",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -220,12 +220,12 @@
 							"query": [
 								{
 									"key": "tags",
-									"value": "<string>",
+									"value": "{{$randomNoun}}",
 									"description": "Tags to filter by"
 								},
 								{
 									"key": "tags",
-									"value": "<string>",
+									"value": "{{$randomNoun}}",
 									"description": "Tags to filter by"
 								}
 							]
@@ -307,13 +307,42 @@
 							]
 						},
 						{
+							"name": "inventory",
+							"item": [
+								{
+									"name": "Returns pet inventories by status",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "{{baseUrl}}/store/inventory",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"store",
+												"inventory"
+											]
+										},
+										"description": "Returns a map of status codes to quantities"
+									},
+									"response": []
+								}
+							]
+						},
+						{
 							"name": "Place an order for a pet",
 							"request": {
 								"method": "POST",
 								"header": [
 									{
 										"key": "Content-Type",
-										"value": "application/x-www-form-urlencoded"
+										"value": "application/json"
 									},
 									{
 										"key": "Accept",
@@ -322,7 +351,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"id\": {{$randdomInt}},\n  \"id\": {{$randdomInt}},\n  \"quantity\": 1\n}",
+									"raw": "{\n  \"id\": {{$randomInt}},\n  \"quantity\": {{$randomInt}},\n  \"shipDate\": \"2022-09-22T09:50:18.996Z\",\n  \"status\": \"approved\",\n  \"complete\": true\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -344,30 +373,6 @@
 							"response": []
 						}
 					]
-				},
-				{
-					"name": "Returns pet inventories by status",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/store/inventory",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"store",
-								"inventory"
-							]
-						},
-						"description": "Returns a map of status codes to quantities"
-					},
-					"response": []
 				}
 			]
 		}

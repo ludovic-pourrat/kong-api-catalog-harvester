@@ -5,6 +5,7 @@ import (
 	"github.com/Kong/go-pdk/log"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/types"
+	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"strings"
 )
 
@@ -30,7 +31,26 @@ func BuildParams(url string, path string, log types.Log, logger log.Log) []*open
 	values := strings.Split(path, "/")
 
 	for index, part := range parts {
-		if IsPathParam(part) {
+		if utils.IsPathParam(part) {
+			part = strings.TrimPrefix(part, "{")
+			part = strings.TrimSuffix(part, "}")
+			param := openapi3.ParameterRef{
+				Value: openapi3.NewPathParameter(part).WithSchema(getParamSchema(values[index])),
+			}
+			params = append(params, &param)
+		}
+	}
+
+	return params
+}
+
+func BuildParamsPath(computed string, path string) []*openapi3.ParameterRef {
+	var params []*openapi3.ParameterRef
+	parts := strings.Split(computed, "/")
+	values := strings.Split(path, "/")
+
+	for index, part := range parts {
+		if utils.IsPathParam(part) {
 			part = strings.TrimPrefix(part, "{")
 			part = strings.TrimSuffix(part, "}")
 			param := openapi3.ParameterRef{
@@ -48,7 +68,14 @@ func MergeParams(operation *openapi3.Operation, url string, path string, log typ
 	var updated = false
 	params = BuildParams(url, path, log, logger)
 	for _, param := range params {
-		if !contains(operation.Parameters, param) {
+		found := false
+		for _, op := range operation.Parameters {
+			if op.Value.Name == param.Value.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
 			operation.Parameters = append(operation.Parameters, param)
 			updated = true
 		}
@@ -63,9 +90,4 @@ func contains(s []*openapi3.ParameterRef, e *openapi3.ParameterRef) bool {
 		}
 	}
 	return false
-}
-
-func IsPathParam(segment string) bool {
-	return strings.HasPrefix(segment, "{") &&
-		strings.HasSuffix(segment, "}")
 }

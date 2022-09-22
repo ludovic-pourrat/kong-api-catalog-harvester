@@ -24,3 +24,4 @@
 logs/
 repository/
 snapshots/
+.DS_Store
