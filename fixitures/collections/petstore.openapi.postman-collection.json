@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "6270a299-d92a-4933-9568-fd6be1ff7b08",
+		"_postman_id": "216e3c58-98ce-4680-aaa9-823bb0de586e",
 		"name": "Swagger Petstore - OpenAPI 3.0",
 		"description": "This is a sample Pet Store Server based on the OpenAPI 3.0 specification.  You can find out more about\nSwagger at [http://swagger.io](http://swagger.io). In the third iteration of the pet store, we've switched to the design first approach!\nYou can now help us improve the API whether it's by making changes to the definition itself or to the code.\nThat way, with time, we can improve the API in general, and expose some of the new features in OAS3.\n\nSome useful links:\n- [The Pet Store repository](https://github.com/swagger-api/swagger-petstore)\n- [The source API definition for the Pet Store](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)\n\nContact Support:\n Email: apiteam@swagger.io",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -11,10 +11,15 @@
 			"name": "pet",
 			"item": [
 				{
-					"name": "{Id}",
+					"name": "{id}",
 					"item": [
 						{
-							"name": "Find pet by id",
+							"name": "Find pet by ID",
+							"protocolProfileBehavior": {
+								"disabledSystemHeaders": {
+									"accept": true
+								}
+							},
 							"request": {
 								"method": "GET",
 								"header": [
@@ -35,7 +40,8 @@
 									"variable": [
 										{
 											"key": "id",
-											"value": "{{$randomInt}}"
+											"value": "{{$randomInt}}",
+											"description": "(Required) ID of pet to return"
 										}
 									]
 								},
@@ -47,25 +53,28 @@
 							"name": "Updates a pet in the store with form data",
 							"protocolProfileBehavior": {
 								"disabledSystemHeaders": {
-									"content-type": true,
 									"accept": true
 								}
 							},
 							"request": {
-								"method": "POST",
+								"method": "PUT",
 								"header": [
 									{
 										"key": "Content-Type",
-										"value": "application/json",
-										"type": "text"
+										"value": "application/json"
 									}
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"id\": {{$randomInt}},\n    \"name\": \"{{$randomNoun}}\",\n    \"category\": {\n        \"id\": {{$randomInt}},\n        \"name\": \"Dogs\"\n    },\n    \"photoUrls\": [\n        \"{{$randomImageUrl}}\"\n    ],\n    \"tags\": [\n        {\n            \"id\": {{$randomInt}},\n            \"name\": \"{{$randomCatchPhrase}}\"\n        }\n    ],\n    \"status\": \"available\"\n}"
+									"raw": "{\n  \"name\": \"{$randomNoun}}\",\n  \"id\": {{$randomInt}},\n  \"category\": {\n    \"id\": {{$randomInt}},\n    \"name\": \"{$randomNoun}}\"\n  },\n  \"photoUrls\": [\n    \"{{$randomImageUrl}}\"\n  ],  \n  \"tags\": [\n    {\n      \"id\": {{$randomInt}},\n      \"name\": \"{$randomNoun}}\"\n    },\n    {\n      \"id\": {{$randomInt}},\n      \"name\": \"{$randomNoun}}\"\n    }\n  ],\n  \"status\": \"available\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
 								},
 								"url": {
-									"raw": "{{baseUrl}}/pet/:id?name={{$randomNoun}}&status=available",
+									"raw": "{{baseUrl}}/pet/:id?name={{$randomNoun}}&status={{$randomAdjective}}",
 									"host": [
 										"{{baseUrl}}"
 									],
@@ -77,18 +86,19 @@
 										{
 											"key": "name",
 											"value": "{{$randomNoun}}",
-											"description": "Name of pet that needs to be updated"
+											"description": "Name of pet that needs to be update"
 										},
 										{
 											"key": "status",
-											"value": "available",
+											"value": "{{$randomAdjective}}",
 											"description": "Status of pet that needs to be updated"
 										}
 									],
 									"variable": [
 										{
 											"key": "id",
-											"value": "{{$randomInt}}"
+											"value": "{{$randomInt}}",
+											"description": "(Required) ID of pet that needs to be updated"
 										}
 									]
 								}
@@ -97,9 +107,20 @@
 						},
 						{
 							"name": "Deletes a pet",
+							"protocolProfileBehavior": {
+								"disabledSystemHeaders": {
+									"accept": true
+								}
+							},
 							"request": {
 								"method": "DELETE",
-								"header": [],
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json",
+										"type": "text"
+									}
+								],
 								"url": {
 									"raw": "{{baseUrl}}/pet/:id",
 									"host": [
@@ -112,63 +133,107 @@
 									"variable": [
 										{
 											"key": "id",
-											"value": "{{$randomInt}}"
+											"value": "{{$randomInt}}",
+											"description": "(Required) Pet id to delete"
 										}
 									]
 								}
+							},
+							"response": []
+						},
+						{
+							"name": "Find pet category by ID and by category",
+							"protocolProfileBehavior": {
+								"disabledSystemHeaders": {
+									"accept": true
+								}
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/pet/:id/category/:category",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"pet",
+										":id",
+										"category",
+										":category"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "{{$randomInt}}",
+											"description": "(Required) ID of pet to return"
+										},
+										{
+											"key": "category",
+											"value": "{{$randomAdjective}}",
+											"description": "(Required) Category of pet to return"
+										}
+									]
+								},
+								"description": "Returns a single pet"
 							},
 							"response": []
 						}
 					]
 				},
 				{
-					"name": "category",
-					"item": [
-						{
-							"name": "{category}",
-							"item": [
-								{
-									"name": "Find pet by id and category by id",
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{baseUrl}}/pet/:id/category/:category",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"pet",
-												":id",
-												"category",
-												":category"
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{$randomInt}}"
-												},
-												{
-													"key": "category",
-													"value": "{{$randomColor}}"
-												}
-											]
-										},
-										"description": "Returns a single pet"
-									},
-									"response": []
-								}
-							]
+					"name": "Add a new pet to the store",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept": true
 						}
-					]
+					},
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": {{$randomInt}},\n  \"name\": \"{{$randomLastName}}\",\n  \"category\": {\n    \"id\": {{$randomInt}},\n    \"name\": \"{{$randomColor}}\"\n  },\n  \"photoUrls\": [\n    \"{{$randomImageUrl}}\"\n  ],\n  \"tags\": [\n    {\n      \"id\": {{$randomInt}},\n      \"name\": \"{{$randomBsAdjective}}\"\n    }\n  ],\n  \"status\": \"available\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/pet",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"pet"
+							]
+						},
+						"description": "Add a new pet to the store"
+					},
+					"response": []
 				},
 				{
 					"name": "Finds Pets by status",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept": true
+						}
+					},
 					"request": {
 						"method": "GET",
 						"header": [
@@ -178,7 +243,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/pet/findByStatus?status=available",
+							"raw": "{{baseUrl}}/pet/findByStatus?status={{$randomAdjective}}",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -189,7 +254,7 @@
 							"query": [
 								{
 									"key": "status",
-									"value": "available",
+									"value": "{{$randomAdjective}}",
 									"description": "Status values that need to be considered for filter"
 								}
 							]
@@ -209,7 +274,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/pet/findByTags?tags={{$randomNoun}}&tags={{$randomNoun}}",
+							"raw": "{{baseUrl}}/pet/findByTags?tags={{$randomColor}}&tags={{$randomCity}}",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -220,12 +285,12 @@
 							"query": [
 								{
 									"key": "tags",
-									"value": "{{$randomNoun}}",
+									"value": "{{$randomColor}}",
 									"description": "Tags to filter by"
 								},
 								{
 									"key": "tags",
-									"value": "{{$randomNoun}}",
+									"value": "{{$randomCity}}",
 									"description": "Tags to filter by"
 								}
 							]
@@ -246,7 +311,12 @@
 							"name": "{id}",
 							"item": [
 								{
-									"name": "Find purchase order by id",
+									"name": "Find purchase order by ID",
+									"protocolProfileBehavior": {
+										"disabledSystemHeaders": {
+											"accept": true
+										}
+									},
 									"request": {
 										"method": "GET",
 										"header": [
@@ -256,18 +326,18 @@
 											}
 										],
 										"url": {
-											"raw": "{{baseUrl}}/store/order/:orderId",
+											"raw": "{{baseUrl}}/store/order/:id",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
 												"store",
 												"order",
-												":orderId"
+												":id"
 											],
 											"variable": [
 												{
-													"key": "orderId",
+													"key": "id",
 													"value": "{{$randomInt}}",
 													"description": "(Required) ID of order that needs to be fetched"
 												}
@@ -279,22 +349,33 @@
 								},
 								{
 									"name": "Delete purchase order by ID",
+									"protocolProfileBehavior": {
+										"disabledSystemHeaders": {
+											"accept": true
+										}
+									},
 									"request": {
 										"method": "DELETE",
-										"header": [],
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json",
+												"type": "text"
+											}
+										],
 										"url": {
-											"raw": "{{baseUrl}}/store/order/:orderId",
+											"raw": "{{baseUrl}}/store/order/:id",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
 												"store",
 												"order",
-												":orderId"
+												":id"
 											],
 											"variable": [
 												{
-													"key": "orderId",
+													"key": "id",
 													"value": "{{$randomInt}}",
 													"description": "(Required) ID of the order that needs to be deleted"
 												}
@@ -307,36 +388,12 @@
 							]
 						},
 						{
-							"name": "inventory",
-							"item": [
-								{
-									"name": "Returns pet inventories by status",
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{baseUrl}}/store/inventory",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"store",
-												"inventory"
-											]
-										},
-										"description": "Returns a map of status codes to quantities"
-									},
-									"response": []
-								}
-							]
-						},
-						{
 							"name": "Place an order for a pet",
+							"protocolProfileBehavior": {
+								"disabledSystemHeaders": {
+									"accept": true
+								}
+							},
 							"request": {
 								"method": "POST",
 								"header": [
@@ -351,7 +408,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"id\": {{$randomInt}},\n  \"quantity\": {{$randomInt}},\n  \"shipDate\": \"2022-09-22T09:50:18.996Z\",\n  \"status\": \"approved\",\n  \"complete\": true\n}",
+									"raw": "{\n  \"id\": {{$randomInt}},\n  \"quantity\": {{$randomInt}},\n  \"status\": \"placed\",\n  \"complete\": true\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -373,6 +430,35 @@
 							"response": []
 						}
 					]
+				},
+				{
+					"name": "Returns pet inventories by status",
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept": true
+						}
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/store/inventory",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"store",
+								"inventory"
+							]
+						},
+						"description": "Returns a map of status codes to quantities"
+					},
+					"response": []
 				}
 			]
 		}
