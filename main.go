@@ -111,22 +111,9 @@ func process(rawLog *string, rawRequest *[]byte, rawResponse *string, logger log
 	// search specification
 	if _, found := specs[log.Service.Name]; !found {
 		specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
-		//var read *openapi3.T
-		//read, err = utils.Read(log.Service.Name)
-		//if err != nil {
-		//	logger.Err(err)
-		//	return
-		//}
-		//if read == nil {
-		//	specs[log.Service.Name] = factories.BuildSpecification(log.Service.Name, "3.0.0")
-		//} else {
-		//	specs[log.Service.Name] = read
-		//}
 	} else {
-		// aggregate
 		specs[log.Service.Name] = factories.CloneSpecification(specs[log.Service.Name],
 			registeredPaths)
-
 	}
 	var name string
 	// match

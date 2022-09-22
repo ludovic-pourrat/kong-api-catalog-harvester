@@ -50,23 +50,3 @@ func Write(name string, specification *openapi3.T) error {
 	}
 	return nil
 }
-
-func Read(name string) (*openapi3.T, error) {
-	_, err := os.Stat(fmt.Sprintf("/repository/%s.yaml", name))
-	if err == nil {
-		var data []byte
-		// write to file
-		data, err = os.ReadFile(fmt.Sprintf("/repository/%s.yaml", name))
-		if err != nil {
-			return nil, err
-		}
-		var specification *openapi3.T
-		// marshal to yaml
-		err = yaml.Unmarshal(data, specification)
-		if err != nil {
-			return nil, err
-		}
-		return specification, nil
-	}
-	return nil, nil
-}
