@@ -4,6 +4,7 @@ package pathtrie
 
 import (
 	"container/list"
+	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/ludovic-pourrat/kong-api-catalog-harvester/utils"
 	"reflect"
@@ -62,12 +63,15 @@ func (pt *PathTrie) Insert(computed string,
 	operation *openapi3.Operation,
 	method string,
 	val interface{}) bool {
-	return pt.InsertMerge(strings.Split(computed, pt.PathSeparator),
+	isNewPath := pt.InsertMerge(strings.Split(computed, pt.PathSeparator),
 		strings.Split(url, pt.PathSeparator),
 		map[string]*openapi3.Operation{method: operation},
 		val, func(existing, newV *interface{}) {
 			*existing = *newV
 		})
+	s := pt.Print()
+	fmt.Println(s)
+	return isNewPath
 }
 
 // Insert val at path, with path segments separated by PathSeparator.
@@ -89,6 +93,7 @@ func (pt *PathTrie) InsertMerge(segments []string,
 	// Traverse the Trie along computed, inserting nodes where necessary.
 	for idx, segment := range segments {
 		isLastSegment := idx == len(segments)-1
+
 		if node, ok := trie[segment]; ok {
 			if len(urls) == idx+1 {
 				for k, v := range operations {
@@ -105,7 +110,7 @@ func (pt *PathTrie) InsertMerge(segments []string,
 			}
 		} else {
 			var children []*TrieNode
-			if len(trie) >= 16 {
+			if len(trie) >= 2 {
 				for k, v := range trie {
 					for _, child := range v.Children {
 						children = append(children, child)
@@ -122,9 +127,13 @@ func (pt *PathTrie) InsertMerge(segments []string,
 				}
 				// TODO update (computed, url, id) in parents
 			}
-			newNode := pt.createPathTrieNode(operations,
-				segments,
-				urls,
+			newOperations := operations
+			if len(urls) != idx+1 {
+				newOperations = make(map[string]*openapi3.Operation)
+			}
+			newNode := pt.createPathTrieNode(newOperations,
+				segments[:idx+1],
+				urls[:idx+1],
 				idx,
 				isLastSegment,
 				val)
@@ -194,4 +203,12 @@ func (pt *PathTrie) Nodes() []*TrieNode {
 		queue.Remove(qnode)
 	}
 	return nodes
+}
+
+func (pt *PathTrie) Print() string {
+	s := ""
+	for _, node := range pt.Nodes() {
+		s += node.Name + "\n"
+	}
+	return s
 }
