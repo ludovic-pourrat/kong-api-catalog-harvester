@@ -21,8 +21,10 @@ func BuildRequest(raw []byte, contentType string, log types.Log) *openapi3.Reque
 				respBodyJSON, _ := gojsonschema.NewBytesLoader(raw).LoadJSON()
 				requestSchema, _ = BuildSchema(respBodyJSON)
 			case mediaType == "application/x-www-form-urlencoded":
+				// TODO validate this media type
 				requestSchema, _ = BuildForm(string(raw))
 			case mediaType == "multipart/form-data":
+				// TODO validate this media type
 				requestSchema, _ = BuildMultiPart(string(raw), mediaTypeParams)
 			default:
 				requestSchema = openapi3.NewStringSchema()

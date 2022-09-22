@@ -86,6 +86,7 @@ func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef)
 				responseContent.Schema.Value = schema
 				updated = true
 			case mediaType == "application/x-www-form-urlencoded":
+				// TODO validate this media type
 				schema, err = BuildForm(raw)
 				if err != nil {
 					return false, err
@@ -95,6 +96,7 @@ func MergeResponse(raw string, log types.Log, responseRef *openapi3.ResponseRef)
 					return false, err
 				}
 			case mediaType == "multipart/form-data":
+				// TODO validate this media type
 				schema, err = BuildMultiPart(raw, mediaTypeParams)
 				if err != nil {
 					return false, err
